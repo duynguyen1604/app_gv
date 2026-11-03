@@ -106,7 +106,6 @@ export function FeesPage() {
       const rows: FeeRow[] = classStudents.map(student => {
         let presentCount = 0
         let absentCount = 0
-        let excusedCount = 0
         
         for (const session of sessions) {
           const att = attendance.find(a =>
@@ -116,8 +115,7 @@ export function FeesPage() {
             a.start_time === session.start_time
           )
           if (att?.status === 'present') presentCount++
-          else if (att?.status === 'absent') absentCount++
-          else if (att?.status === 'excused') excusedCount++
+          else if (att?.status === 'absent' || att?.status === 'excused') absentCount++
         }
         
         // Skip trial students from fee calculation (0đ)
@@ -129,7 +127,7 @@ export function FeesPage() {
           student,
           present_count: presentCount,
           absent_count: absentCount,
-          excused_count: excusedCount,
+          excused_count: 0,
           price_per_session: price,
           total,
           paid: payment?.paid ?? false,
@@ -183,7 +181,6 @@ Trân trọng cảm ơn quý phụ huynh!`
           'Trạng thái': r.student.status === 'trial' ? 'Học thử' : 'Đang học',
           'Số buổi có mặt': r.present_count,
           'Số buổi vắng': r.absent_count,
-          'Vắng có phép': r.excused_count,
           'Giá / buổi (VNĐ)': r.price_per_session,
           'Thành tiền (VNĐ)': r.total,
           'Tình trạng đóng': r.paid ? 'Đã đóng' : 'Chưa đóng',
@@ -458,18 +455,14 @@ Trân trọng cảm ơn quý phụ huynh!`
                         {/* Expanded details */}
                         {expandedRows.has(row.student.id) && (
                           <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800/40 border-t border-gray-100 dark:border-gray-800">
-                            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                            <div className="grid grid-cols-2 gap-2 text-center text-xs">
                               <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded-lg">
                                 <div className="font-bold text-base text-green-700 dark:text-green-400">{row.present_count}</div>
-                                <div className="text-[11px] text-green-600">Có mặt (tính tiền)</div>
+                                <div className="text-[11px] text-green-600 font-medium">Có mặt (tính tiền)</div>
                               </div>
                               <div className="p-2 bg-red-50 dark:bg-red-950/30 rounded-lg">
                                 <div className="font-bold text-base text-red-700 dark:text-red-400">{row.absent_count}</div>
-                                <div className="text-[11px] text-red-600">Vắng không phép</div>
-                              </div>
-                              <div className="p-2 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg">
-                                <div className="font-bold text-base text-yellow-700 dark:text-yellow-400">{row.excused_count}</div>
-                                <div className="text-[11px] text-yellow-600">Vắng có phép</div>
+                                <div className="text-[11px] text-red-600 font-medium">Vắng (không tính tiền)</div>
                               </div>
                             </div>
 

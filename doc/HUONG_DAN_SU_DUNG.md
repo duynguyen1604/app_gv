@@ -108,7 +108,7 @@ Màn hình **"Tuần"** là nơi thầy/cô sử dụng nhiều nhất trong ng�
 2. Mặc định hệ thống tự chọn buổi học gần nhất.
 3. Điểm danh cực nhanh:
    * Nếu cả lớp đi đủ: Bấm nút **"Tất cả có mặt"** (1 chạm là xong cả lớp).
-   * Nếu có học sinh vắng: Bấm nút **"Vắng"** hoặc **"Có phép"** ở dòng của học sinh đó.
+   * Nếu có học sinh vắng: Bấm nút **"Vắng"** ở dòng của học sinh đó (hệ thống tinh gọn tối ưu gồm 2 trạng thái: **Có mặt** và **Vắng**).
 4. Mở rộng phần **"📝 Nội dung buổi học"** bên dưới để ghi chép nội dung bài giảng và bài tập về nhà. Dữ liệu sẽ tự động lưu lại.
 
 ---

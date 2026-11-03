@@ -38,9 +38,8 @@ export function attendanceLabel(status: string): string {
   const labels: Record<string, string> = {
     present: 'Có mặt',
     absent: 'Vắng',
-    excused: 'Vắng phép'
   }
-  return labels[status] || '-'
+  return labels[status] || (status === 'excused' ? 'Vắng' : '-')
 }
 
 // Truncate text

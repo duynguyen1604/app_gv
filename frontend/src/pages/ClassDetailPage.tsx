@@ -279,8 +279,7 @@ function AttendanceTab({ classId }: { classId: string }) {
   }
 
   const presentCount = Object.values(currentAttendance).filter(s => s === 'present').length
-  const absentCount = Object.values(currentAttendance).filter(s => s === 'absent').length
-  const excusedCount = Object.values(currentAttendance).filter(s => s === 'excused').length
+  const absentCount = Object.values(currentAttendance).filter(s => s === 'absent' || s === 'excused').length
 
   if (sessions.length === 0) {
     return (
@@ -319,19 +318,15 @@ function AttendanceTab({ classId }: { classId: string }) {
 
       {selectedSession && (
         <>
-          {/* Stats */}
+          {/* Stats: 2 statuses (Có mặt & Vắng) */}
           <div className="flex gap-2">
-            <div className="flex-1 bg-green-50 dark:bg-green-900/20 rounded-lg p-2 text-center">
-              <div className="text-lg font-bold text-green-700 dark:text-green-400">{presentCount}</div>
-              <div className="text-xs text-green-600 dark:text-green-500">Có mặt</div>
+            <div className="flex-1 bg-green-50 dark:bg-green-900/20 rounded-lg p-2.5 text-center">
+              <div className="text-xl font-bold text-green-700 dark:text-green-400">{presentCount}</div>
+              <div className="text-xs font-medium text-green-600 dark:text-green-500">Có mặt</div>
             </div>
-            <div className="flex-1 bg-red-50 dark:bg-red-900/20 rounded-lg p-2 text-center">
-              <div className="text-lg font-bold text-red-700 dark:text-red-400">{absentCount}</div>
-              <div className="text-xs text-red-600 dark:text-red-500">Vắng</div>
-            </div>
-            <div className="flex-1 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-2 text-center">
-              <div className="text-lg font-bold text-yellow-700 dark:text-yellow-400">{excusedCount}</div>
-              <div className="text-xs text-yellow-600 dark:text-yellow-500">Có phép</div>
+            <div className="flex-1 bg-red-50 dark:bg-red-900/20 rounded-lg p-2.5 text-center">
+              <div className="text-xl font-bold text-red-700 dark:text-red-400">{absentCount}</div>
+              <div className="text-xs font-medium text-red-600 dark:text-red-500">Vắng</div>
             </div>
           </div>
 
@@ -350,12 +345,12 @@ function AttendanceTab({ classId }: { classId: string }) {
                     <span className="font-medium text-sm text-gray-900 dark:text-white flex-1">{student.name}</span>
                     {status && (
                       <span className={cn(
-                        'badge text-xs',
-                        status === 'present' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                        status === 'absent' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                        'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        'badge text-xs font-semibold',
+                        status === 'present'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                       )}>
-                        {status === 'present' ? '✓ Có mặt' : status === 'absent' ? '✗ Vắng' : '~ Có phép'}
+                        {status === 'present' ? '✓ Có mặt' : '✗ Vắng'}
                       </span>
                     )}
                   </div>
@@ -364,19 +359,13 @@ function AttendanceTab({ classId }: { classId: string }) {
                       onClick={() => handleAttend(student.id, 'present')}
                       className={cn('attend-btn attend-present', status === 'present' && 'active')}
                     >
-                      Có mặt
+                      ✓ Có mặt
                     </button>
                     <button
                       onClick={() => handleAttend(student.id, 'absent')}
-                      className={cn('attend-btn attend-absent', status === 'absent' && 'active')}
+                      className={cn('attend-btn attend-absent', (status === 'absent' || status === 'excused') && 'active')}
                     >
-                      Vắng
-                    </button>
-                    <button
-                      onClick={() => handleAttend(student.id, 'excused')}
-                      className={cn('attend-btn attend-excused', status === 'excused' && 'active')}
-                    >
-                      Có phép
+                      ✗ Vắng
                     </button>
                   </div>
                 </div>
