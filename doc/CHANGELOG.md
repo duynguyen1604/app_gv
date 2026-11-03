@@ -4,6 +4,13 @@ Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa b�
 
 ---
 
+## [2026-11-03] - Bổ sung tệp giới thiệu dự án `README.md` ở thư mục gốc
+
+### ➕ Đã thêm (Added)
+- Tạo tệp [`README.md`](file:///d:/app_gv/README.md) ở thư mục gốc: Tổng quan dự án, tính năng nổi bật (AI Zalo, Quét TKB Gemini Vision, tính học phí thực tế, Cron 24/7 gửi Gmail, Postgres sync), sơ đồ kiến trúc monorepo và hướng dẫn cài đặt / khởi chạy chi tiết bằng `npm` và `docker compose`.
+
+---
+
 ## [2026-11-03] - Tái cấu trúc chuẩn hóa thư mục (Gom Frontend vào `frontend/`)
 
 ### ➕ Đã thêm (Added)
