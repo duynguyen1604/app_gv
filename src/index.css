@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  input, textarea, select {
+    @apply focus:outline-none;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-blue-600 text-white hover:bg-blue-700 px-4 py-2.5 text-sm;
+  }
+  .btn-secondary {
+    @apply btn bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 px-4 py-2.5 text-sm;
+  }
+  .btn-danger {
+    @apply btn bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 px-4 py-2.5 text-sm;
+  }
+  .btn-ghost {
+    @apply btn text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 px-3 py-2 text-sm;
+  }
+  .btn-icon {
+    @apply btn p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800;
+  }
+  .card {
+    @apply bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800;
+  }
+  .input {
+    @apply w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors;
+  }
+  .label {
+    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1;
+  }
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .section-title {
+    @apply text-base font-semibold text-gray-900 dark:text-gray-100;
+  }
+  .bottom-nav-item {
+    @apply flex flex-col items-center gap-0.5 py-2 px-3 text-xs font-medium transition-colors;
+  }
+}
+
+/* Safe area for mobile */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+.pt-safe {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+/* Hide scrollbar */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth transitions */
+.page-transition {
+  @apply transition-all duration-200;
+}
+
+/* Custom number formatting */
+.money::after {
+  content: 'đ';
+}
+
+/* Attendance buttons */
+.attend-btn {
+  @apply flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150 active:scale-95 border-2;
+}
+.attend-present {
+  @apply attend-btn border-green-500 text-green-700 dark:text-green-400;
+}
+.attend-present.active {
+  @apply bg-green-500 text-white dark:text-white;
+}
+.attend-absent {
+  @apply attend-btn border-red-400 text-red-700 dark:text-red-400;
+}
+.attend-absent.active {
+  @apply bg-red-400 text-white dark:text-white;
+}
+.attend-excused {
+  @apply attend-btn border-yellow-400 text-yellow-700 dark:text-yellow-400;
+}
+.attend-excused.active {
+  @apply bg-yellow-400 text-white dark:text-white;
+}
+
