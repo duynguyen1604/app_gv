@@ -4,6 +4,16 @@ Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa b�
 
 ---
 
+## [2026-11-03] - Khởi chạy thử nghiệm Local và nâng cấp độ bền Backend
+
+### 🔄 Đã sửa (Changed)
+- `backend/src/server.ts`: Chuyển khởi tạo kết nối cơ sở dữ liệu sang dạng bất đồng bộ có xử lý ngoại lệ (non-blocking). Máy chủ API Express khởi động tức thì tại cổng 4000, không bị ngắt tiến trình nếu cơ sở dữ liệu chưa sẵn sàng hoặc đang chờ cấu hình `.env`.
+- Khởi chạy thành công cả hai dịch vụ trên máy cục bộ:
+  * **Frontend (Vite)**: Đang chạy tại `http://localhost:5173/`.
+  * **Backend (Node.js API)**: Đang chạy tại `http://localhost:4000/`.
+
+---
+
 ## [2026-11-03] - Bổ sung tệp giới thiệu dự án `README.md` ở thư mục gốc
 
 ### ➕ Đã thêm (Added)

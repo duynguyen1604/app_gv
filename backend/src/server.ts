@@ -146,12 +146,19 @@ app.post('/api/ai/parse-school-image', async (req, res) => {
 })
 
 async function start() {
-  await waitForDatabase()
-  await ensureSchema()
-  startCronJobs()
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[SERVER] Teacher Schedule Manager Backend running on port ${PORT}`)
   })
+
+  try {
+    await waitForDatabase(5, 1000)
+    await ensureSchema()
+    startCronJobs()
+    console.log('[SERVER] Database connected & Cron service active')
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.warn(`[SERVER] Database connection deferred (${message}). API is running; configure PostgreSQL in .env to enable Sync & Cron.`)
+  }
 }
 
 start().catch((err) => {
