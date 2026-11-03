@@ -114,6 +114,7 @@ Toàn bộ logic giao diện, nghiệp vụ tính toán, cơ chế lưu trữ c�
 - [x] **Đồng bộ frontend ↔ Postgres**: `src/lib/backendSync.ts` kéo/đẩy tự động; màn Cài đặt có nút đồng bộ tay.
 - [x] **Dịch vụ Cron tự động gửi email 24/7 (`backend/src/cron.ts`)**: Sử dụng tiến trình `node-cron` chạy ngầm 24/7 bên trong container, kiểm tra giờ mỗi phút theo múi giờ `Asia/Ho_Chi_Minh` và tự động gửi email lịch dạy hôm nay qua Gmail SMTP lúc 06:00 sáng **ngay cả khi giáo viên tắt máy tính và điện thoại**.
 - [x] **Frontend Container (Nginx Alpine)**: Tự động phục vụ SPA và reverse proxy các yêu cầu `/api/` sang backend container.
+- [x] **Tái cấu trúc thư mục Monorepo sạch**: Tách biệt rõ ràng `frontend/` và `backend/`, thư mục gốc gọn gàng chỉ gồm 4 thư mục chính (`frontend/`, `backend/`, `docker/`, `doc/`) và tệp điều phối `package.json`, `docker-compose.yml`.
 - [x] **Docker Compose (`docker-compose.yml`)**: Khởi động toàn bộ cụm 3 dịch vụ chỉ bằng 1 lệnh `docker compose up -d`.
 
 ---

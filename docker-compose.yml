@@ -53,7 +53,7 @@ services:
   # 3. Frontend Web App (Nginx Reverse Proxy)
   frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: app_gv_frontend
     restart: unless-stopped

@@ -4,6 +4,21 @@ Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa b�
 
 ---
 
+## [2026-11-03] - Tái cấu trúc chuẩn hóa thư mục (Gom Frontend vào `frontend/`)
+
+### ➕ Đã thêm (Added)
+- Thư mục riêng [`frontend/`](file:///d:/app_gv/frontend) chứa toàn bộ mã nguồn giao diện (React 18, TypeScript, Vite, Tailwind CSS).
+- Tạo tệp [`frontend/nginx.conf`](file:///d:/app_gv/frontend/nginx.conf) và [`frontend/.dockerignore`](file:///d:/app_gv/frontend/.dockerignore) giúp container frontend hoàn toàn độc lập và tự đóng gói.
+- Tạo tệp điều phối [`package.json`](file:///d:/app_gv/package.json) tại thư mục gốc với các lệnh tiện ích: `npm run dev` (chạy frontend), `npm run dev:backend` (chạy backend), `npm run build`, `npm run build:backend`, `npm run install:all`.
+
+### 🔄 Đã sửa (Changed)
+- Di chuyển toàn bộ tệp phân tán ở thư mục gốc vào `frontend/`: `src/`, `public/`, `index.html`, `vite.config.ts`, `tailwind.config.js`, `postcss.config.js`, `tsconfig.json`, `package.json`, `package-lock.json`, `Dockerfile`.
+- Cập nhật [`docker-compose.yml`](file:///d:/app_gv/docker-compose.yml): Đổi build context của dịch vụ `frontend` thành `context: ./frontend`.
+- Cập nhật [`frontend/Dockerfile`](file:///d:/app_gv/frontend/Dockerfile): Sửa đường dẫn cấu hình Nginx thành `COPY nginx.conf /etc/nginx/conf.d/default.conf`.
+- Cập nhật [`.gitignore`](file:///d:/app_gv/.gitignore) và [`.dockerignore`](file:///d:/app_gv/.dockerignore) tại thư mục gốc để tương thích cấu trúc mới.
+
+---
+
 ## [2026-11-03] - Hoàn thiện Backend API và dựng PostgreSQL
 
 ### ➕ Đã thêm (Added)

@@ -1,4 +1,6 @@
 node_modules
+frontend/node_modules
+frontend/dist
 backend/node_modules
 backend/dist
 dist
@@ -6,3 +8,4 @@ dist
 doc
 *.md
 .env.local
+frontend/.env.local

@@ -39,15 +39,35 @@ Xây dựng một giải pháp Web App toàn diện, hoạt động mượt mà 
 
 ---
 
-## 📁 3. Cấu trúc thư mục tài liệu (`/doc`)
+## 📁 3. Cấu trúc thư mục dự án
 
-1. **`doc/README.md`**: Giới thiệu dự án, công nghệ, hướng dẫn khởi chạy.
-2. **`doc/QUY_TAC_PHAT_TRIEN.md`**: **Quy tắc bắt buộc** mọi lần thêm/xóa/sửa đều phải ghi lại trong `doc/`.
-3. **`doc/CHANGELOG.md`**: Nhật ký thay đổi chi tiết theo thời gian (Added, Changed, Removed, Fixed).
-4. **`doc/DOCKER_BACKEND.md`**: Hướng dẫn triển khai Backend, Database PostgreSQL và Cron Service bằng Docker Compose.
-5. **`doc/TIEN_DO_DA_LAM_VA_CHUA_LAM.md`**: Bảng chi tiết toàn bộ tính năng **ĐÃ HOÀN THÀNH** và danh sách các hạng mục **CẦN MỞ RỘNG / NÂNG CẤP**.
-6. **`doc/KIEN_TRUC_VA_MO_HINH_DU_LIEU.md`**: Giải thích kiến trúc, công thức tính lịch thực tế, logic phát hiện xung đột lịch, mô hình dữ liệu.
-7. **`doc/HUONG_DAN_SU_DUNG.md`**: Cẩm nang hướng dẫn sử dụng từng bước dành cho giáo viên.
+```
+app_gv/
+├── frontend/             # Giao diện người dùng (React 18 + Vite + Tailwind CSS + Zustand)
+│   ├── src/              # Mã nguồn React (pages, components, store, lib, types)
+│   ├── public/           # Tệp tĩnh (favicon, icons)
+│   ├── Dockerfile        # Đóng gói frontend multi-stage
+│   ├── nginx.conf        # Cấu hình Nginx reverse proxy
+│   └── package.json      # Dependencies frontend
+├── backend/              # Dịch vụ máy chủ (Node.js + Express + TypeScript + Cron)
+│   ├── src/              # Mã nguồn API & Cron job 24/7 (server, cron, mailer, sync, db)
+│   ├── sql/init.sql      # Schema khởi tạo 11 bảng PostgreSQL
+│   ├── Dockerfile        # Đóng gói backend container
+│   └── package.json      # Dependencies backend
+├── docker/               # Cấu hình phụ trợ Docker & Nginx
+├── doc/                  # Toàn bộ tài liệu kỹ thuật & hướng dẫn sử dụng
+│   ├── README.md         # Tổng quan dự án và khởi chạy
+│   ├── QUY_TAC_PHAT_TRIEN.md # Quy tắc phát triển bắt buộc
+│   ├── CHANGELOG.md      # Nhật ký thay đổi chi tiết
+│   ├── DOCKER_BACKEND.md # Hướng dẫn triển khai Docker Compose
+│   ├── TIEN_DO_DA_LAM_VA_CHUA_LAM.md # Tiến độ và tính năng
+│   ├── KIEN_TRUC_VA_MO_HINH_DU_LIEU.md # Kiến trúc và mô hình dữ liệu
+│   └── HUONG_DAN_SU_DUNG.md # Hướng dẫn sử dụng cho giáo viên
+├── docker-compose.yml    # Điều phối 3 container: postgres, backend, frontend
+├── package.json          # Script điều phối gốc (npm run dev, npm run build, ...)
+├── .env.example          # Mẫu biến môi trường
+└── AGENTS.md             # Hướng dẫn và quy tắc dành cho lập trình viên/Agent
+```
 
 ---
 
@@ -62,11 +82,14 @@ Xây dựng một giải pháp Web App toàn diện, hoạt động mượt mà 
 # 1. Di chuyển vào thư mục dự án
 cd c:\Users\MSI\app_gv
 
-# 2. Cài đặt các gói phụ thuộc (nếu chưa cài)
-npm install
+# 2. Cài đặt các gói phụ thuộc
+npm run install:all
 
-# 3. Khởi chạy môi trường phát triển (Development)
+# 3. Khởi chạy giao diện Frontend (Development)
 npm run dev
+
+# (Tùy chọn) Chạy Backend song song ở terminal khác:
+npm run dev:backend
 ```
 
 Sau khi chạy lệnh, mở trình duyệt tại địa chỉ hiển thị trên terminal (thường là `http://localhost:5173`).
@@ -78,9 +101,12 @@ docker compose up -d --build
 ```
 Ứng dụng sẽ hoạt động tại `http://localhost`, API tại `http://localhost/api/health`. Xem thêm chi tiết tại [**`doc/DOCKER_BACKEND.md`**](file:///c:/Users/MSI/app_gv/doc/DOCKER_BACKEND.md).
 
-### Biên dịch bản phát hành (Production Build tĩnh):
+### Biên dịch bản phát hành (Production Build):
 ```powershell
+# Build frontend (kết quả tại frontend/dist/):
 npm run build
+
+# Hoặc build cả frontend và backend:
+npm run build && npm run build:backend
 ```
-Bản build tĩnh tối ưu sẽ được tạo trong thư mục `dist/`, sẵn sàng triển khai lên Vercel, Netlify, Cloudflare Pages hoặc Firebase Hosting.
 
