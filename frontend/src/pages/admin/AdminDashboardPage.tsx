@@ -275,8 +275,8 @@ export function AdminDashboardPage() {
   // Invites tab state
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteCustomCode, setInviteCustomCode] = useState('')
-  const [inviteMaxUses, setInviteMaxUses] = useState(1)
-  const [inviteExpireDays, setInviteExpireDays] = useState<number>(14)
+  const [inviteMaxUses, setInviteMaxUses] = useState('1')
+  const [inviteExpireDays, setInviteExpireDays] = useState('14')
   const [creatingInvite, setCreatingInvite] = useState(false)
   const [revokeInviteTargetId, setRevokeInviteTargetId] = useState<string | null>(null)
   const [deleteInviteTargetId, setDeleteInviteTargetId] = useState<string | null>(null)
@@ -532,11 +532,13 @@ export function AdminDashboardPage() {
     if (!sessionToken) return
     setCreatingInvite(true)
     try {
+      const parsedMaxUses = Math.max(1, Math.min(500, Number(inviteMaxUses) || 1))
+      const parsedExpireDays = Math.max(0, Math.min(365, Number(inviteExpireDays) || 0))
       const res = await apiAdminCreateInvite(sessionToken, {
         email: inviteEmail.trim() || null,
         customCode: inviteCustomCode.trim() || null,
-        maxUses: inviteMaxUses,
-        expiresInDays: inviteExpireDays > 0 ? inviteExpireDays : null,
+        maxUses: parsedMaxUses,
+        expiresInDays: parsedExpireDays > 0 ? parsedExpireDays : null,
         sendEmailNow: true,
       })
       toast.success(res.message)
@@ -1151,7 +1153,15 @@ export function AdminDashboardPage() {
                       min={1}
                       max={500}
                       value={inviteMaxUses}
-                      onChange={(e) => setInviteMaxUses(Number(e.target.value || 1))}
+                      onChange={(e) => setInviteMaxUses(e.target.value)}
+                      onBlur={() => {
+                        const n = Number(inviteMaxUses)
+                        if (!inviteMaxUses.trim() || Number.isNaN(n) || n < 1) {
+                          setInviteMaxUses('1')
+                        } else if (n > 500) {
+                          setInviteMaxUses('500')
+                        }
+                      }}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#24262B] border border-gray-300 dark:border-[#37393F] text-sm"
                     />
                   </div>
@@ -1164,7 +1174,15 @@ export function AdminDashboardPage() {
                       min={0}
                       max={365}
                       value={inviteExpireDays}
-                      onChange={(e) => setInviteExpireDays(Number(e.target.value || 0))}
+                      onChange={(e) => setInviteExpireDays(e.target.value)}
+                      onBlur={() => {
+                        const n = Number(inviteExpireDays)
+                        if (!inviteExpireDays.trim() || Number.isNaN(n) || n < 0) {
+                          setInviteExpireDays('0')
+                        } else if (n > 365) {
+                          setInviteExpireDays('365')
+                        }
+                      }}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#24262B] border border-gray-300 dark:border-[#37393F] text-sm"
                     />
                   </div>

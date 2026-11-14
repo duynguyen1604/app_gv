@@ -2,6 +2,14 @@
 
 Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa bỏ) trong dự án Quản lý Lịch dạy Giáo viên được ghi lại chi tiết tại tệp này theo định dạng chuẩn [Keep a Changelog](https://keepachangelog.com/).
 
+## [2026-11-14] - Fix Ô Nhập "Số Lượt Dùng Tối Đa" & "Hạn Sử Dụng" Không Xóa Được Số Mặc Định
+
+### 🐛 Đã sửa (Fixed)
+- **Cho phép xóa trắng để nhập số mới ở form Tạo mã mời ([`frontend/src/pages/admin/AdminDashboardPage.tsx`](file:///d:/app_gv/frontend/src/pages/admin/AdminDashboardPage.tsx))**:
+  * Đổi `inviteMaxUses` và `inviteExpireDays` sang state chuỗi (`string`) khi đang gõ để người dùng có thể xóa hết số `1` (hoặc `14`) rồi nhập số mới bình thường, và tự chuẩn hóa giá trị hợp lệ khi `onBlur` hoặc bấm tạo mã mời.
+
+---
+
 ## [2026-11-14] - Fix Đếm Sai Số "GV Đang Hoạt Động" & Chống Trùng Lặp Tài Khoản Trong Admin Overview
 
 ### 🐛 Đã sửa (Fixed)
