@@ -346,57 +346,45 @@ export function LoginPage() {
             </p>
           </div>
 
-          {/* Quick Local Test Accounts Helper */}
-          <div className="rounded-xl bg-blue-50/70 dark:bg-[#24262B] border border-blue-200/60 dark:border-[#32353C] p-3 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#1A73E8] dark:text-[#8AB4F8]">
-              <Sparkles size={14} />
-              <span>Tài khoản mẫu để kiểm tra nhanh Bước 1:</span>
+          {/* Quick Local Test Accounts Helper - Chỉ hiển thị ở môi trường Local Dev, tự động ẩn khi Deploy */}
+          {import.meta.env.DEV && (
+            <div className="rounded-xl bg-blue-50/70 dark:bg-[#24262B] border border-blue-200/60 dark:border-[#32353C] p-3 space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#1A73E8] dark:text-[#8AB4F8]">
+                <Sparkles size={14} />
+                <span>Tài khoản mẫu (Chỉ hiện ở Local):</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('admin@lichday.vn')
+                    setPassword('Admin123456')
+                    setErrorMsg(null)
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#1E1F22] border border-blue-200 dark:border-[#37393F] text-left hover:border-[#1A73E8] transition-colors"
+                >
+                  <div className="text-[11px] font-bold text-gray-900 dark:text-white">
+                    Admin cố định
+                  </div>
+                  <div className="text-[10px] text-gray-500 truncate">admin@lichday.vn</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('giaovien@lichday.vn')
+                    setPassword('Giaovien123')
+                    setErrorMsg(null)
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#1E1F22] border border-blue-200 dark:border-[#37393F] text-left hover:border-[#1A73E8] transition-colors"
+                >
+                  <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                    GV Đang hoạt động
+                  </div>
+                  <div className="text-[10px] text-gray-500 truncate">giaovien@lichday.vn</div>
+                </button>
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('admin@lichday.vn')
-                  setPassword('Admin123456')
-                  setErrorMsg(null)
-                }}
-                className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#1E1F22] border border-blue-200 dark:border-[#37393F] text-left hover:border-[#1A73E8] transition-colors"
-              >
-                <div className="text-[11px] font-bold text-gray-900 dark:text-white">
-                  Admin cố định
-                </div>
-                <div className="text-[10px] text-gray-500 truncate">admin@lichday.vn</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('giaovien@lichday.vn')
-                  setPassword('Giaovien123')
-                  setErrorMsg(null)
-                }}
-                className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#1E1F22] border border-blue-200 dark:border-[#37393F] text-left hover:border-[#1A73E8] transition-colors"
-              >
-                <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
-                  GV Đang hoạt động
-                </div>
-                <div className="text-[10px] text-gray-500 truncate">giaovien@lichday.vn</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('choduyet@lichday.vn')
-                  setPassword('Giaovien123')
-                  setErrorMsg(null)
-                }}
-                className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#1E1F22] border border-blue-200 dark:border-[#37393F] text-left hover:border-[#1A73E8] transition-colors"
-              >
-                <div className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
-                  GV Chờ duyệt
-                </div>
-                <div className="text-[10px] text-gray-500 truncate">choduyet@lichday.vn</div>
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </main>
 

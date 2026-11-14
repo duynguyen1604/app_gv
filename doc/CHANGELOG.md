@@ -20,8 +20,10 @@ Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa b�
   * Lưu trữ bền vững toàn bộ tài khoản và dữ liệu lịch dạy trong bảng `kv_store` trên Cloudflare D1 (miễn phí 5GB lưu trữ + 5 triệu lượt đọc/ngày).
   * Tự động khởi tạo bảng `CREATE TABLE IF NOT EXISTS kv_store` ngay ở request đầu tiên (không lo lỗi thiếu bảng khi mới gắn D1) và có bộ nhớ dự phòng tự động nếu người dùng chưa kịp gắn binding `DB`.
   * Gỡ bỏ tệp `wrangler.toml` / `frontend/wrangler.toml` để Cloudflare Pages Dashboard mở khóa nút **`+ Add` Bindings** trực tiếp trên giao diện web (không bị khóa bởi chế độ quản lý qua file `wrangler.toml`).
-- **Chuẩn hóa URL kết nối API phía Frontend ([`frontend/src/lib/supabase.ts`](file:///d:/app_gv/frontend/src/lib/supabase.ts), [`frontend/src/lib/backendSync.ts`](file:///d:/app_gv/frontend/src/lib/backendSync.ts), [`frontend/public/_redirects`](file:///d:/app_gv/frontend/public/_redirects), [`package.json`](file:///d:/app_gv/package.json))**:
-  * Gỡ bỏ giá trị mặc định cứng `http://localhost:4000` trong `supabase.ts`, hợp nhất `VITE_API_URL` / `VITE_API_BASE_URL` mặc định về `''` (same-origin `/api/*`), giúp chạy mượt cả ở môi trường dev (qua Vite proxy) lẫn khi deploy trên Cloudflare Pages mà không cần khai báo biến môi trường phức tạp.
+- **Chuẩn hóa URL kết nối API phía Frontend & Ẩn hộp Tài khoản mẫu khi Deploy ([`frontend/src/lib/supabase.ts`](file:///d:/app_gv/frontend/src/lib/supabase.ts), [`frontend/src/lib/backendSync.ts`](file:///d:/app_gv/frontend/src/lib/backendSync.ts), [`frontend/src/pages/auth/LoginPage.tsx`](file:///d:/app_gv/frontend/src/pages/auth/LoginPage.tsx), [`frontend/public/_redirects`](file:///d:/app_gv/frontend/public/_redirects), [`frontend/public/_routes.json`](file:///d:/app_gv/frontend/public/_routes.json), [`package.json`](file:///d:/app_gv/package.json))**:
+  * Gỡ bỏ giá trị mặc định cứng `http://localhost:4000` trong `supabase.ts`, hợp nhất `VITE_API_URL` / `VITE_API_BASE_URL` mặc định về `''` (same-origin `/api/*`), bổ sung `_routes.json` để Cloudflare Pages định tuyến chính xác 100% các request `/api/*` vào Pages Functions.
+  * Đồng bộ cấu trúc phản hồi JSON của `frontend/functions/api/[[route]].ts` (`success: true`, `sessionToken`, `expiresAt`, `status: 'active'`) khớp tuyệt đối với `supabase.ts`.
+  * Ẩn hộp **"Tài khoản mẫu để kiểm tra nhanh Bước 1"** trên màn hình Đăng nhập (`LoginPage.tsx`) khi build bản Production/Deploy (chỉ hiển thị ở môi trường `import.meta.env.DEV`) và loại bỏ tài khoản mẫu `choduyet@lichday.vn`.
 
 ---
 

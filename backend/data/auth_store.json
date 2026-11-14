@@ -31,7 +31,7 @@
       "created_at": "2026-11-04T18:03:55.535Z",
       "approved_by": "usr-admin-fixed-001",
       "approved_at": "2026-11-04T18:03:55.535Z",
-      "last_login_at": "2026-11-14T08:33:22.337Z",
+      "last_login_at": "2026-11-14T09:33:53.815Z",
       "locked_reason": null
     },
     {
@@ -112,6 +112,27 @@
     "updated_at": "2026-11-04T18:03:55.535Z"
   },
   "auditLogs": [
+    {
+      "id": "aud-1794648833842-2807e7",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-14T09:33:53.842Z"
+    },
+    {
+      "id": "aud-1794648832523-5e570b",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-14T09:33:52.528Z"
+    },
     {
       "id": "aud-1794645202362-3e5415",
       "actor_id": "usr-teacher-active-002",

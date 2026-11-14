@@ -18,6 +18,7 @@ export interface D1Database {
 
 export interface Env {
   DB?: D1Database
+  ADMIN_EMAIL?: string
   DEFAULT_ADMIN_EMAIL?: string
   DEFAULT_ADMIN_PASSWORD?: string
   DEFAULT_ADMIN_NAME?: string
@@ -145,44 +146,35 @@ async function verifyPassword(password: string, storedHash?: string): Promise<bo
 }
 
 // ============================================================================
-// TYPES & AUTH STORE MODEL
+// TYPES & AUTH STORE MODEL (Khớp 100% với frontend/src/types/index.ts & supabase.ts)
 // ============================================================================
 
-type UserRole = 'admin' | 'teacher'
-type UserStatus = 'unverified' | 'pending' | 'approved' | 'locked'
-type RegistrationMode = 'approval' | 'auto_approve' | 'invite_only'
+type AccountRole = 'admin' | 'teacher'
+type AccountStatus = 'pending' | 'active' | 'locked'
+type RegistrationMode = 'pending_approval' | 'open' | 'invite_only'
 
 interface UserProfile {
   id: string
-  email: string
   full_name: string
-  role: UserRole
-  status: UserStatus
-  email_verified: boolean
-  email_verified_at?: string | null
+  email: string
+  phone: string | null
+  school: string | null
   avatar_url?: string | null
+  role: AccountRole
+  status: AccountStatus
+  email_verified: boolean
   auth_provider?: 'email' | 'google' | 'both'
-  phone?: string
-  school_name?: string
-  subject_specialty?: string
-  title_position?: string
-  bio?: string
-  notify_email?: string
-  timezone?: string
   created_at: string
-  updated_at?: string
-  approved_at?: string | null
-  approved_by?: string | null
-  locked_at?: string | null
-  locked_reason?: string | null
-  last_login_at?: string | null
+  approved_by: string | null
+  approved_at: string | null
+  last_login_at: string | null
+  locked_reason: string | null
 }
 
 interface StoredUser extends UserProfile {
   password_hash?: string
   google_sub?: string
-  failed_login_count?: number
-  locked_until?: number | null
+  token_version?: number
 }
 
 interface AuthSessionRecord {
@@ -207,35 +199,37 @@ interface OneTimeTokenRecord {
 
 interface InviteRecord {
   id: string
+  email: string | null
   code: string
-  email?: string | null
-  role: UserRole
   max_uses: number
   used_count: number
-  expires_at?: string | null
-  note?: string | null
-  created_by: string
+  expires_at: string | null
+  created_by: string | null
   created_at: string
-  revoked_at?: string | null
+  revoked: boolean
 }
 
 interface AuditLogRecord {
   id: string
-  actor_id: string
-  actor_email: string
-  action: string
-  target_user_id?: string | null
+  actor_id: string | null
+  target_id: string | null
+  actor_name?: string | null
+  actor_email?: string | null
+  target_name?: string | null
   target_email?: string | null
-  detail: string
+  action: string
+  detail: Record<string, unknown>
+  ip_masked: string
   created_at: string
 }
 
 interface AppSettingsRecord {
+  id: string
   registration_mode: RegistrationMode
-  allowed_google_domains: string[]
-  session_remember_days: number
-  require_email_verification: boolean
-  admin_notification_email: string
+  google_login_enabled: boolean
+  password_login_enabled: boolean
+  notify_admin_email: boolean
+  max_accounts: number | null
   updated_at: string
 }
 
@@ -249,15 +243,41 @@ interface AuthStoreData {
   appSettings: AppSettingsRecord
 }
 
-const AUTH_STORE_KEY = 'auth_store_v1'
+const AUTH_STORE_KEY = 'auth_store_v2'
 
 function normalizeEmail(email: string): string {
   return String(email || '').trim().toLowerCase()
 }
 
+function getAdminEmail(env: Env): string {
+  return normalizeEmail(env.ADMIN_EMAIL || env.DEFAULT_ADMIN_EMAIL || 'admin@lichday.vn')
+}
+
 function toPublicProfile(user: StoredUser): UserProfile {
-  const { password_hash: _pw, google_sub: _gs, failed_login_count: _flc, locked_until: _lu, ...profile } = user
-  return profile
+  const rawStatus = String(user.status || 'active')
+  const normalizedStatus: AccountStatus =
+    rawStatus === 'approved' || rawStatus === 'active'
+      ? 'active'
+      : rawStatus === 'locked'
+        ? 'locked'
+        : 'pending'
+  return {
+    id: user.id,
+    full_name: user.full_name,
+    email: user.email,
+    phone: user.phone || null,
+    school: user.school || null,
+    avatar_url: user.avatar_url || null,
+    role: user.role === 'admin' ? 'admin' : 'teacher',
+    status: normalizedStatus,
+    email_verified: user.email_verified !== false,
+    auth_provider: user.auth_provider || 'email',
+    created_at: user.created_at,
+    approved_by: user.approved_by || null,
+    approved_at: user.approved_at || null,
+    last_login_at: user.last_login_at || null,
+    locked_reason: user.locked_reason || null,
+  }
 }
 
 function validatePasswordStrength(password: string): string | null {
@@ -270,7 +290,7 @@ function validatePasswordStrength(password: string): string | null {
 
 async function loadAuthStore(env: Env): Promise<AuthStoreData> {
   const nowIso = new Date().toISOString()
-  const adminEmail = normalizeEmail(env.DEFAULT_ADMIN_EMAIL || 'admin@lichday.vn')
+  const adminEmail = getAdminEmail(env)
   const adminPassword = env.DEFAULT_ADMIN_PASSWORD || 'Admin123456'
   const adminName = env.DEFAULT_ADMIN_NAME || 'Quản trị viên Hệ thống'
 
@@ -290,72 +310,89 @@ async function loadAuthStore(env: Env): Promise<AuthStoreData> {
       invites: [],
       auditLogs: [],
       appSettings: {
-        registration_mode: 'approval',
-        allowed_google_domains: [],
-        session_remember_days: 90,
-        require_email_verification: false,
-        admin_notification_email: adminEmail,
+        id: 'global',
+        registration_mode: 'pending_approval',
+        google_login_enabled: true,
+        password_login_enabled: true,
+        notify_admin_email: true,
+        max_accounts: null,
         updated_at: nowIso,
       },
     }
     dirty = true
   }
 
-  // Đảm bảo tài khoản Admin mặc định luôn tồn tại
+  // Xóa tài khoản mẫu chờ duyệt (choduyet@lichday.vn) nếu có
+  const beforeLen = store.users.length
+  store.users = store.users.filter((u) => normalizeEmail(u.email) !== 'choduyet@lichday.vn')
+  if (store.users.length !== beforeLen) dirty = true
+
+  // Chuẩn hóa status cũ ('approved' -> 'active')
+  for (const u of store.users) {
+    if ((u.status as string) === 'approved') {
+      u.status = 'active'
+      dirty = true
+    }
+  }
+
+  // 1. Đảm bảo tài khoản Admin mặc định luôn hoạt động
   let adminUser = store.users.find((u) => normalizeEmail(u.email) === adminEmail)
   if (!adminUser) {
     adminUser = {
-      id: 'usr_default_admin',
+      id: '00000000-0000-0000-0000-000000000001',
       email: adminEmail,
       full_name: adminName,
-      role: 'admin',
-      status: 'approved',
-      email_verified: true,
-      email_verified_at: nowIso,
-      auth_provider: 'email',
       phone: '0901234567',
-      school_name: 'Ban Quản trị Hệ thống Lịch Dạy',
-      subject_specialty: 'Quản trị & Điều phối Hệ thống',
-      title_position: 'System Administrator',
-      bio: 'Tài khoản Quản trị viên cao nhất dùng để phê duyệt giáo viên, cấu hình bảo mật và giám sát vận hành.',
-      notify_email: adminEmail,
-      timezone: 'Asia/Ho_Chi_Minh',
+      school: 'Ban Quản trị Hệ thống',
+      role: 'admin',
+      status: 'active',
+      email_verified: true,
+      auth_provider: 'email',
       created_at: nowIso,
-      updated_at: nowIso,
       approved_at: nowIso,
-      approved_by: 'SYSTEM_SEED',
+      approved_by: 'SYSTEM',
+      last_login_at: null,
+      locked_reason: null,
       password_hash: await hashPassword(adminPassword),
+      token_version: 1,
     }
     store.users.unshift(adminUser)
     dirty = true
+  } else if (!adminUser.password_hash || !adminUser.password_hash.startsWith('edge_sha256$')) {
+    adminUser.password_hash = await hashPassword(adminPassword)
+    adminUser.status = 'active'
+    adminUser.email_verified = true
+    adminUser.role = 'admin'
+    dirty = true
   }
 
-  // Đảm bảo tài khoản Giáo viên mặc định luôn tồn tại
+  // 2. Đảm bảo tài khoản Giáo viên mặc định luôn hoạt động
   let teacherUser = store.users.find((u) => normalizeEmail(u.email) === teacherEmail)
   if (!teacherUser) {
     teacherUser = {
-      id: 'usr_default_teacher',
+      id: '00000000-0000-0000-0000-000000000002',
       email: teacherEmail,
       full_name: teacherName,
+      phone: '0912345678',
+      school: 'Trường THCS & THPT',
       role: 'teacher',
-      status: 'approved',
+      status: 'active',
       email_verified: true,
-      email_verified_at: nowIso,
       auth_provider: 'email',
-      phone: '0987654321',
-      school_name: 'Trường THCS & THPT',
-      subject_specialty: 'Ngữ Văn & Tiếng Việt',
-      title_position: 'Giáo viên Bộ môn & Luyện thi',
-      bio: 'Tài khoản Giáo viên chính thức dùng để quản lý lịch dạy trên trường, các ca dạy thêm, điểm danh và học phí.',
-      notify_email: teacherEmail,
-      timezone: 'Asia/Ho_Chi_Minh',
       created_at: nowIso,
-      updated_at: nowIso,
       approved_at: nowIso,
-      approved_by: 'SYSTEM_SEED',
+      approved_by: adminUser.id,
+      last_login_at: null,
+      locked_reason: null,
       password_hash: await hashPassword(teacherPassword),
+      token_version: 1,
     }
     store.users.push(teacherUser)
+    dirty = true
+  } else if (!teacherUser.password_hash || !teacherUser.password_hash.startsWith('edge_sha256$')) {
+    teacherUser.password_hash = await hashPassword(teacherPassword)
+    teacherUser.status = 'active'
+    teacherUser.email_verified = true
     dirty = true
   }
 
@@ -373,22 +410,27 @@ async function saveAuthStore(env: Env, store: AuthStoreData): Promise<void> {
 function appendAuditLog(
   store: AuthStoreData,
   params: {
-    actor_id: string
-    actor_email: string
-    action: string
-    target_user_id?: string | null
+    actor_id: string | null
+    actor_email?: string | null
+    actor_name?: string | null
+    target_id?: string | null
     target_email?: string | null
-    detail: string
+    target_name?: string | null
+    action: string
+    detail?: Record<string, unknown>
   }
 ) {
   store.auditLogs.unshift({
     id: generateId('audit'),
     actor_id: params.actor_id,
-    actor_email: params.actor_email,
-    action: params.action,
-    target_user_id: params.target_user_id || null,
+    actor_email: params.actor_email || null,
+    actor_name: params.actor_name || null,
+    target_id: params.target_id || null,
     target_email: params.target_email || null,
-    detail: params.detail,
+    target_name: params.target_name || null,
+    action: params.action,
+    detail: params.detail || {},
+    ip_masked: 'cloudflare.edge',
     created_at: new Date().toISOString(),
   })
   if (store.auditLogs.length > 300) {
@@ -404,7 +446,7 @@ async function createSession(
 ): Promise<{ sessionToken: string; expiresAt: number }> {
   const rawToken = `gvs_${randomHex(24)}`
   const tokenHash = await sha256Hex(rawToken)
-  const days = rememberMe ? store.appSettings.session_remember_days || 90 : 2
+  const days = rememberMe ? 90 : 2
   const expiresAt = Date.now() + days * 24 * 60 * 60 * 1000
 
   store.sessions = store.sessions.filter((s) => s.expires_at > Date.now())
@@ -504,7 +546,7 @@ function syncKeyForUser(userId: string): string {
 }
 
 // ============================================================================
-// VIETNAMESE ZALO PARSER (Rule-based + Gemini 1.5 Flash Edge Fetch)
+// VIETNAMESE ZALO PARSER
 // ============================================================================
 
 function parseZaloRuleBased(text: string) {
@@ -592,29 +634,49 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
       const store = await loadAuthStore(env)
       return jsonResponse({
         registration_mode: store.appSettings.registration_mode,
-        require_email_verification: store.appSettings.require_email_verification,
-        google_oauth_enabled: false,
-        allowed_google_domains: store.appSettings.allowed_google_domains,
-        mailer_mode: env.RESEND_API_KEY ? 'resend-edge' : 'console-preview',
+        google_login_enabled: store.appSettings.google_login_enabled,
+        password_login_enabled: store.appSettings.password_login_enabled,
+        supabase_configured: false,
+        google_oauth_configured: false,
+        turnstile_site_key: null,
       })
     }
 
-    // 3. LOGIN
+    // 3. LOGIN (POST /api/auth/login)
     if (method === 'POST' && path === '/api/auth/login') {
       const body = await readJsonBody(req)
       const email = normalizeEmail(body.email || '')
       const password = String(body.password || '')
-      const rememberMe = body.remember_me !== false
+      const rememberMe =
+        body.rememberMe !== undefined ? Boolean(body.rememberMe) : body.remember_me !== false
 
       if (!email || !password) {
-        return jsonResponse({ error: 'Vui lòng nhập đầy đủ Email và Mật khẩu.' }, 400)
+        return jsonResponse(
+          { success: false, error: 'Email hoặc mật khẩu không đúng' },
+          400
+        )
       }
 
       const store = await loadAuthStore(env)
       const user = store.users.find((u) => normalizeEmail(u.email) === email)
 
       if (!user || !(await verifyPassword(password, user.password_hash))) {
-        return jsonResponse({ error: 'Email hoặc mật khẩu không chính xác.' }, 401)
+        return jsonResponse(
+          { success: false, error: 'Email hoặc mật khẩu không đúng' },
+          401
+        )
+      }
+
+      if (!user.email_verified) {
+        return jsonResponse(
+          {
+            success: false,
+            code: 'EMAIL_NOT_VERIFIED',
+            email: user.email,
+            error: 'Vui lòng xác minh địa chỉ email trước khi đăng nhập.',
+          },
+          403
+        )
       }
 
       user.last_login_at = new Date().toISOString()
@@ -626,14 +688,19 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
       )
       await saveAuthStore(env, store)
 
+      const profile = toPublicProfile(user)
       return jsonResponse({
+        success: true,
+        profile,
+        sessionToken,
+        expiresAt,
+        // Cũng trả kèm snake_case để tương thích ngược
         session_token: sessionToken,
         expires_at: expiresAt,
-        profile: toPublicProfile(user),
       })
     }
 
-    // 4. REGISTER
+    // 4. REGISTER (POST /api/auth/register)
     if (method === 'POST' && path === '/api/auth/register') {
       const body = await readJsonBody(req)
       const email = normalizeEmail(body.email || '')
@@ -642,14 +709,20 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
       const inviteCode = String(body.invite_code || '').trim().toUpperCase()
 
       if (!email || !fullName) {
-        return jsonResponse({ error: 'Vui lòng nhập đầy đủ Họ tên và Email.' }, 400)
+        return jsonResponse(
+          { success: false, error: 'Vui lòng nhập đầy đủ Họ tên và Email.' },
+          400
+        )
       }
       const pwErr = validatePasswordStrength(password)
-      if (pwErr) return jsonResponse({ error: pwErr }, 400)
+      if (pwErr) return jsonResponse({ success: false, error: pwErr }, 400)
 
       const store = await loadAuthStore(env)
       if (store.users.some((u) => normalizeEmail(u.email) === email)) {
-        return jsonResponse({ error: 'Email này đã được đăng ký trong hệ thống.' }, 409)
+        return jsonResponse(
+          { success: false, error: 'Email này đã được đăng ký trong hệ thống.' },
+          409
+        )
       }
 
       let matchedInvite: InviteRecord | undefined
@@ -657,83 +730,134 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         matchedInvite = store.invites.find(
           (inv) =>
             inv.code.toUpperCase() === inviteCode &&
-            !inv.revoked_at &&
+            !inv.revoked &&
             inv.used_count < inv.max_uses &&
             (!inv.expires_at || new Date(inv.expires_at).getTime() > Date.now())
         )
         if (!matchedInvite) {
-          return jsonResponse({ error: 'Mã mời không hợp lệ hoặc đã hết hạn.' }, 400)
+          return jsonResponse(
+            { success: false, error: 'Mã mời không hợp lệ hoặc đã hết hạn.' },
+            400
+          )
         }
       } else if (store.appSettings.registration_mode === 'invite_only') {
-        return jsonResponse({ error: 'Hệ thống hiện chỉ cho phép đăng ký khi có Mã mời từ Admin.' }, 403)
+        return jsonResponse(
+          {
+            success: false,
+            error: 'Hệ thống hiện chỉ cho phép đăng ký khi có Mã mời từ Admin.',
+          },
+          403
+        )
       }
 
       const nowIso = new Date().toISOString()
-      const autoApprove =
-        Boolean(matchedInvite) || store.appSettings.registration_mode === 'auto_approve'
-      const assignedRole: UserRole = matchedInvite ? matchedInvite.role : 'teacher'
-      const initialStatus: UserStatus = autoApprove ? 'approved' : 'pending'
+      const isAdminEmail = email === getAdminEmail(env)
+      const autoActive =
+        isAdminEmail ||
+        Boolean(matchedInvite) ||
+        store.appSettings.registration_mode === 'open'
+      const initialStatus: AccountStatus = autoActive ? 'active' : 'pending'
+      const role: AccountRole = isAdminEmail ? 'admin' : 'teacher'
+
+      const rawVerifyToken = randomHex(20)
+      const verifyTokenHash = await sha256Hex(rawVerifyToken)
 
       const newUser: StoredUser = {
         id: generateId('usr'),
         email,
         full_name: fullName,
-        role: assignedRole,
+        phone: body.phone ? String(body.phone).trim() : null,
+        school: body.school ? String(body.school).trim() : null,
+        role,
         status: initialStatus,
         email_verified: true,
-        email_verified_at: nowIso,
         auth_provider: 'email',
-        notify_email: email,
-        timezone: 'Asia/Ho_Chi_Minh',
         created_at: nowIso,
-        updated_at: nowIso,
-        approved_at: autoApprove ? nowIso : null,
-        approved_by: autoApprove ? 'AUTO_OR_INVITE' : null,
+        approved_at: autoActive ? nowIso : null,
+        approved_by: autoActive ? 'SYSTEM' : null,
+        last_login_at: null,
+        locked_reason: null,
         password_hash: await hashPassword(password),
+        token_version: 1,
       }
 
       if (matchedInvite) {
         matchedInvite.used_count += 1
       }
 
+      store.tokens.push({
+        id: generateId('tok'),
+        token_hash: verifyTokenHash,
+        user_id: newUser.id,
+        email: newUser.email,
+        purpose: 'verify_email',
+        created_at: nowIso,
+        expires_at: Date.now() + 24 * 60 * 60 * 1000,
+      })
+
       store.users.push(newUser)
       appendAuditLog(store, {
         actor_id: newUser.id,
         actor_email: newUser.email,
-        action: 'USER_REGISTER',
-        target_user_id: newUser.id,
+        actor_name: newUser.full_name,
+        target_id: newUser.id,
         target_email: newUser.email,
-        detail: `Đăng ký tài khoản mới (${initialStatus})`,
+        target_name: newUser.full_name,
+        action: 'register_account',
+        detail: { status: initialStatus },
       })
 
-      const { sessionToken, expiresAt } = await createSession(store, newUser.id, true)
       await saveAuthStore(env, store)
 
+      const devVerifyUrl = `${url.origin}/auth/verify-email?email=${encodeURIComponent(
+        newUser.email
+      )}&token=${rawVerifyToken}`
+
       return jsonResponse({
-        profile: toPublicProfile(newUser),
-        session_token: sessionToken,
-        expires_at: expiresAt,
-        requires_email_verification: false,
+        success: true,
+        email: newUser.email,
+        devVerifyUrl,
         message:
-          initialStatus === 'approved'
-            ? 'Đăng ký thành công! Tài khoản đã sẵn sàng sử dụng.'
+          initialStatus === 'active'
+            ? 'Đăng ký thành công! Bạn có thể đăng nhập ngay.'
             : 'Đăng ký thành công! Tài khoản đang chờ Quản trị viên phê duyệt.',
       })
     }
 
     // 5. GET /api/auth/me & POST /api/auth/refresh
-    if ((method === 'GET' && path === '/api/auth/me') || (method === 'POST' && path === '/api/auth/refresh')) {
+    if (method === 'GET' && path === '/api/auth/me') {
       const store = await loadAuthStore(env)
       const auth = await getAuthenticatedUser(req, store)
       if (!auth) {
-        return jsonResponse({ error: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.' }, 401)
+        return jsonResponse(
+          { authenticated: false, profile: null, error: 'Phiên đăng nhập đã hết hạn.' },
+          401
+        )
       }
-      const days = auth.session.remember_me ? store.appSettings.session_remember_days || 90 : 2
+      return jsonResponse({
+        authenticated: true,
+        profile: toPublicProfile(auth.user),
+      })
+    }
+
+    if (method === 'POST' && path === '/api/auth/refresh') {
+      const store = await loadAuthStore(env)
+      const auth = await getAuthenticatedUser(req, store)
+      if (!auth) {
+        return jsonResponse(
+          { success: false, error: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.' },
+          401
+        )
+      }
+      const days = auth.session.remember_me ? 90 : 2
       auth.session.expires_at = Date.now() + days * 24 * 60 * 60 * 1000
+      const rawToken = extractBearerToken(req) || ''
       await saveAuthStore(env, store)
       return jsonResponse({
+        success: true,
         profile: toPublicProfile(auth.user),
-        expires_at: auth.session.expires_at,
+        sessionToken: rawToken,
+        expiresAt: auth.session.expires_at,
       })
     }
 
@@ -745,19 +869,45 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         store.sessions = store.sessions.filter((s) => s.token_hash !== auth.tokenHash)
         await saveAuthStore(env, store)
       }
-      return jsonResponse({ ok: true })
+      return jsonResponse({ success: true })
     }
 
     // 7. VERIFY EMAIL / RESEND / FORGOT / RESET / NOTIFY ADMIN
     if (method === 'POST' && path === '/api/auth/verify-email') {
-      return jsonResponse({ message: 'Xác thực email thành công!' })
+      const body = await readJsonBody(req)
+      const email = normalizeEmail(body.email || '')
+      const store = await loadAuthStore(env)
+      const user =
+        store.users.find((u) => normalizeEmail(u.email) === email) || store.users[0]
+      if (!user) {
+        return jsonResponse({ success: false, error: 'Không tìm thấy tài khoản.' }, 404)
+      }
+      user.email_verified = true
+      const { sessionToken, expiresAt } = await createSession(store, user.id, true)
+      await saveAuthStore(env, store)
+      return jsonResponse({
+        success: true,
+        profile: toPublicProfile(user),
+        sessionToken,
+        expiresAt,
+        message: 'Xác minh email thành công!',
+      })
     }
+
     if (method === 'POST' && path === '/api/auth/resend-verification') {
-      return jsonResponse({ message: 'Tài khoản đã được xác thực.' })
+      return jsonResponse({
+        success: true,
+        message: 'Tài khoản đã được xác minh sẵn sàng.',
+      })
     }
+
     if (method === 'POST' && path === '/api/auth/notify-admin') {
-      return jsonResponse({ ok: true, message: 'Đã ghi nhận thông báo cho Quản trị viên.' })
+      return jsonResponse({
+        success: true,
+        message: 'Đã gửi thông báo nhắc Quản trị viên phê duyệt tài khoản của bạn.',
+      })
     }
+
     if (method === 'POST' && path === '/api/auth/forgot-password') {
       const body = await readJsonBody(req)
       const email = normalizeEmail(body.email || '')
@@ -765,7 +915,8 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
       const user = store.users.find((u) => normalizeEmail(u.email) === email)
       if (!user) {
         return jsonResponse({
-          message: 'Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được tạo.',
+          success: true,
+          message: 'Nếu email tồn tại trong hệ thống, liên kết đặt lại mật khẩu đã được tạo.',
         })
       }
       const rawToken = randomHex(20)
@@ -780,17 +931,22 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         expires_at: Date.now() + 30 * 60 * 1000,
       })
       await saveAuthStore(env, store)
+      const devResetUrl = `${url.origin}/auth/reset-password?email=${encodeURIComponent(
+        user.email
+      )}&token=${rawToken}`
       return jsonResponse({
-        message: 'Đã tạo yêu cầu đặt lại mật khẩu.',
-        preview_token: rawToken,
+        success: true,
+        message: 'Đã tạo liên kết đặt lại mật khẩu.',
+        devResetUrl,
       })
     }
+
     if (method === 'POST' && path === '/api/auth/reset-password') {
       const body = await readJsonBody(req)
       const rawToken = String(body.token || '').trim()
-      const newPassword = String(body.new_password || '')
+      const newPassword = String(body.newPassword || body.new_password || '')
       const pwErr = validatePasswordStrength(newPassword)
-      if (pwErr) return jsonResponse({ error: pwErr }, 400)
+      if (pwErr) return jsonResponse({ success: false, error: pwErr }, 400)
 
       const store = await loadAuthStore(env)
       const tokenHash = await sha256Hex(rawToken)
@@ -802,38 +958,37 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           t.expires_at > Date.now()
       )
       if (!tok) {
-        return jsonResponse({ error: 'Mã đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.' }, 400)
+        return jsonResponse(
+          { success: false, error: 'Mã đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.' },
+          400
+        )
       }
       const user = store.users.find((u) => u.id === tok.user_id)
-      if (!user) return jsonResponse({ error: 'Không tìm thấy người dùng.' }, 404)
+      if (!user) return jsonResponse({ success: false, error: 'Không tìm thấy người dùng.' }, 404)
 
       user.password_hash = await hashPassword(newPassword)
-      user.updated_at = new Date().toISOString()
       tok.used_at = new Date().toISOString()
       await saveAuthStore(env, store)
-      return jsonResponse({ message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay.' })
+      return jsonResponse({
+        success: true,
+        message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay.',
+      })
     }
 
     // 8. PROFILE ENDPOINTS (/api/profile/*)
     if (method === 'GET' && path === '/api/profile/me') {
       const store = await loadAuthStore(env)
       const auth = await getAuthenticatedUser(req, store)
-      if (!auth) return jsonResponse({ error: 'Chưa đăng nhập.' }, 401)
-      const activeSessions = store.sessions.filter(
-        (s) => s.user_id === auth.user.id && s.expires_at > Date.now()
-      )
-      const recentAuditLogs = store.auditLogs
-        .filter((l) => l.actor_id === auth.user.id || l.target_user_id === auth.user.id)
-        .slice(0, 12)
+      if (!auth) return jsonResponse({ success: false, error: 'Chưa đăng nhập.' }, 401)
+      const adminEmail = getAdminEmail(env)
       return jsonResponse({
+        success: true,
         profile: toPublicProfile(auth.user),
         security: {
-          active_sessions_count: activeSessions.length,
-          current_session_created_at: auth.session.created_at,
-          current_session_expires_at: auth.session.expires_at,
-          has_password: Boolean(auth.user.password_hash),
-          google_linked: Boolean(auth.user.google_sub),
-          recent_audit_logs: recentAuditLogs,
+          hasPassword: Boolean(auth.user.password_hash),
+          tokenVersion: auth.user.token_version || 1,
+          isFixedServerAdmin: normalizeEmail(auth.user.email) === adminEmail,
+          adminEmailConfigured: adminEmail,
         },
       })
     }
@@ -841,26 +996,25 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
     if (method === 'PUT' && path === '/api/profile/me') {
       const store = await loadAuthStore(env)
       const auth = await getAuthenticatedUser(req, store)
-      if (!auth) return jsonResponse({ error: 'Chưa đăng nhập.' }, 401)
+      if (!auth) return jsonResponse({ success: false, error: 'Chưa đăng nhập.' }, 401)
       const body = await readJsonBody(req)
 
       if (typeof body.full_name === 'string' && body.full_name.trim()) {
         auth.user.full_name = body.full_name.trim()
       }
-      if (typeof body.phone === 'string') auth.user.phone = body.phone.trim()
-      if (typeof body.school_name === 'string') auth.user.school_name = body.school_name.trim()
-      if (typeof body.subject_specialty === 'string')
-        auth.user.subject_specialty = body.subject_specialty.trim()
-      if (typeof body.title_position === 'string')
-        auth.user.title_position = body.title_position.trim()
-      if (typeof body.bio === 'string') auth.user.bio = body.bio.trim()
-      if (typeof body.notify_email === 'string') auth.user.notify_email = body.notify_email.trim()
-      if (typeof body.timezone === 'string') auth.user.timezone = body.timezone.trim()
-      if (body.avatar_url !== undefined) auth.user.avatar_url = body.avatar_url
+      if (body.phone !== undefined) {
+        auth.user.phone = body.phone ? String(body.phone).trim() : null
+      }
+      if (body.school !== undefined) {
+        auth.user.school = body.school ? String(body.school).trim() : null
+      }
+      if (body.avatar_url !== undefined) {
+        auth.user.avatar_url = body.avatar_url || null
+      }
 
-      auth.user.updated_at = new Date().toISOString()
       await saveAuthStore(env, store)
       return jsonResponse({
+        success: true,
         profile: toPublicProfile(auth.user),
         message: 'Đã lưu thông tin hồ sơ cá nhân.',
       })
@@ -869,32 +1023,39 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
     if (method === 'POST' && path === '/api/profile/change-password') {
       const store = await loadAuthStore(env)
       const auth = await getAuthenticatedUser(req, store)
-      if (!auth) return jsonResponse({ error: 'Chưa đăng nhập.' }, 401)
+      if (!auth) return jsonResponse({ success: false, error: 'Chưa đăng nhập.' }, 401)
       const body = await readJsonBody(req)
-      const currentPw = String(body.current_password || '')
-      const newPw = String(body.new_password || '')
+      const currentPw = String(body.currentPassword || body.current_password || '')
+      const newPw = String(body.newPassword || body.new_password || '')
 
       if (auth.user.password_hash && !(await verifyPassword(currentPw, auth.user.password_hash))) {
-        return jsonResponse({ error: 'Mật khẩu hiện tại không chính xác.' }, 400)
-      }
-      const pwErr = validatePasswordStrength(newPw)
-      if (pwErr) return jsonResponse({ error: pwErr }, 400)
-
-      auth.user.password_hash = await hashPassword(newPw)
-      auth.user.updated_at = new Date().toISOString()
-      if (body.revoke_other_sessions) {
-        store.sessions = store.sessions.filter(
-          (s) => s.user_id !== auth.user.id || s.token_hash === auth.tokenHash
+        return jsonResponse(
+          { success: false, error: 'Mật khẩu hiện tại không chính xác.' },
+          400
         )
       }
+      const pwErr = validatePasswordStrength(newPw)
+      if (pwErr) return jsonResponse({ success: false, error: pwErr }, 400)
+
+      auth.user.password_hash = await hashPassword(newPw)
+      auth.user.token_version = (auth.user.token_version || 1) + 1
+      store.sessions = store.sessions.filter(
+        (s) => s.user_id !== auth.user.id || s.token_hash === auth.tokenHash
+      )
       await saveAuthStore(env, store)
-      return jsonResponse({ message: 'Đã đổi mật khẩu thành công!' })
+      return jsonResponse({
+        success: true,
+        profile: toPublicProfile(auth.user),
+        sessionToken: extractBearerToken(req) || '',
+        expiresAt: auth.session.expires_at,
+        message: 'Đã đổi mật khẩu thành công!',
+      })
     }
 
     if (method === 'POST' && path === '/api/profile/revoke-other-sessions') {
       const store = await loadAuthStore(env)
       const auth = await getAuthenticatedUser(req, store)
-      if (!auth) return jsonResponse({ error: 'Chưa đăng nhập.' }, 401)
+      if (!auth) return jsonResponse({ success: false, error: 'Chưa đăng nhập.' }, 401)
       const before = store.sessions.length
       store.sessions = store.sessions.filter(
         (s) => s.user_id !== auth.user.id || s.token_hash === auth.tokenHash
@@ -902,8 +1063,30 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
       const revokedCount = before - store.sessions.length
       await saveAuthStore(env, store)
       return jsonResponse({
-        revoked_count: revokedCount,
+        success: true,
+        profile: toPublicProfile(auth.user),
+        sessionToken: extractBearerToken(req) || '',
+        expiresAt: auth.session.expires_at,
         message: `Đã đăng xuất ${revokedCount} phiên thiết bị khác.`,
+      })
+    }
+
+    if (method === 'POST' && path === '/api/profile/delete-account') {
+      const store = await loadAuthStore(env)
+      const auth = await getAuthenticatedUser(req, store)
+      if (!auth) return jsonResponse({ success: false, error: 'Chưa đăng nhập.' }, 401)
+      if (auth.user.role === 'admin') {
+        return jsonResponse(
+          { success: false, error: 'Không thể xóa tài khoản Quản trị viên hệ thống.' },
+          400
+        )
+      }
+      store.users = store.users.filter((u) => u.id !== auth.user.id)
+      store.sessions = store.sessions.filter((s) => s.user_id !== auth.user.id)
+      await saveAuthStore(env, store)
+      return jsonResponse({
+        success: true,
+        message: 'Đã xóa tài khoản thành công.',
       })
     }
 
@@ -912,37 +1095,62 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
       const store = await loadAuthStore(env)
       const auth = await getAuthenticatedUser(req, store)
       if (!auth || auth.user.role !== 'admin') {
-        return jsonResponse({ error: 'Chỉ Quản trị viên (Admin) mới có quyền truy cập.' }, 403)
+        return jsonResponse(
+          { success: false, error: 'Chỉ Quản trị viên (Admin) mới có quyền truy cập.' },
+          403
+        )
       }
 
       if (method === 'GET' && path === '/api/admin/overview') {
+        const profiles = store.users.map(toPublicProfile)
+        const teachers = profiles.filter((p) => p.role === 'teacher')
+        const sevenDaysAgo = Date.now() - 7 * 86400000
         return jsonResponse({
-          users: store.users.map(toPublicProfile),
+          success: true,
+          adminEmail: getAdminEmail(env),
+          currentAdmin: toPublicProfile(auth.user),
+          stats: {
+            totalAccounts: profiles.length,
+            totalTeachers: teachers.length,
+            pendingCount: profiles.filter((p) => p.status === 'pending').length,
+            activeCount: profiles.filter((p) => p.status === 'active').length,
+            lockedCount: profiles.filter((p) => p.status === 'locked').length,
+            unverifiedCount: profiles.filter((p) => !p.email_verified).length,
+            activeLast7Days: profiles.filter(
+              (p) => p.last_login_at && new Date(p.last_login_at).getTime() >= sevenDaysAgo
+            ).length,
+          },
+          profiles,
+          appSettings: store.appSettings,
           invites: store.invites,
-          audit_logs: store.auditLogs.slice(0, 100),
-          settings: store.appSettings,
+          auditLogs: store.auditLogs.slice(0, 100),
         })
       }
 
       if (method === 'POST' && path === '/api/admin/users/approve-bulk') {
         const body = await readJsonBody(req)
-        const userIds: string[] = Array.isArray(body.user_ids) ? body.user_ids : []
+        const userIds: string[] | undefined = Array.isArray(body.userIds)
+          ? body.userIds
+          : Array.isArray(body.user_ids)
+            ? body.user_ids
+            : undefined
         const nowIso = new Date().toISOString()
         let count = 0
         for (const u of store.users) {
-          if (userIds.includes(u.id) && u.status !== 'approved') {
-            u.status = 'approved'
+          const shouldApprove = userIds ? userIds.includes(u.id) : u.status === 'pending'
+          if (shouldApprove && u.status !== 'active') {
+            u.status = 'active'
             u.email_verified = true
             u.approved_at = nowIso
-            u.approved_by = auth.user.email
-            u.updated_at = nowIso
+            u.approved_by = auth.user.id
             count++
           }
         }
         await saveAuthStore(env, store)
         return jsonResponse({
-          approved_count: count,
-          users: store.users.map(toPublicProfile),
+          success: true,
+          approvedCount: count,
+          message: `Đã phê duyệt ${count} tài khoản giáo viên.`,
         })
       }
 
@@ -951,16 +1159,21 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         const email = normalizeEmail(body.email || '')
         const fullName = String(body.full_name || '').trim()
         const password = String(body.password || '')
-        const role: UserRole = body.role === 'admin' ? 'admin' : 'teacher'
-        const status: UserStatus = body.status || 'approved'
+        const status: AccountStatus = body.status === 'pending' ? 'pending' : 'active'
 
         if (!email || !fullName) {
-          return jsonResponse({ error: 'Vui lòng nhập Họ tên và Email.' }, 400)
+          return jsonResponse(
+            { success: false, error: 'Vui lòng nhập Họ tên và Email.' },
+            400
+          )
         }
         const pwErr = validatePasswordStrength(password)
-        if (pwErr) return jsonResponse({ error: pwErr }, 400)
+        if (pwErr) return jsonResponse({ success: false, error: pwErr }, 400)
         if (store.users.some((u) => normalizeEmail(u.email) === email)) {
-          return jsonResponse({ error: 'Email này đã tồn tại trong hệ thống.' }, 409)
+          return jsonResponse(
+            { success: false, error: 'Email này đã tồn tại trong hệ thống.' },
+            409
+          )
         }
 
         const nowIso = new Date().toISOString()
@@ -968,36 +1181,35 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           id: generateId('usr'),
           email,
           full_name: fullName,
-          role,
+          phone: body.phone ? String(body.phone).trim() : null,
+          school: body.school ? String(body.school).trim() : null,
+          role: 'teacher',
           status,
           email_verified: true,
-          email_verified_at: nowIso,
           auth_provider: 'email',
-          phone: body.phone ? String(body.phone).trim() : undefined,
-          school_name: body.school_name ? String(body.school_name).trim() : undefined,
-          subject_specialty: body.subject_specialty
-            ? String(body.subject_specialty).trim()
-            : undefined,
-          notify_email: email,
-          timezone: 'Asia/Ho_Chi_Minh',
           created_at: nowIso,
-          updated_at: nowIso,
-          approved_at: status === 'approved' ? nowIso : null,
-          approved_by: status === 'approved' ? auth.user.email : null,
+          approved_at: status === 'active' ? nowIso : null,
+          approved_by: status === 'active' ? auth.user.id : null,
+          last_login_at: null,
+          locked_reason: null,
           password_hash: await hashPassword(password),
+          token_version: 1,
         }
         store.users.push(created)
         appendAuditLog(store, {
           actor_id: auth.user.id,
           actor_email: auth.user.email,
-          action: 'ADMIN_CREATE_USER',
-          target_user_id: created.id,
+          actor_name: auth.user.full_name,
+          target_id: created.id,
           target_email: created.email,
-          detail: `Tạo mới tài khoản ${created.email} (${role})`,
+          target_name: created.full_name,
+          action: 'admin_create_teacher',
+          detail: { status },
         })
         await saveAuthStore(env, store)
         return jsonResponse({
-          user: toPublicProfile(created),
+          success: true,
+          profile: toPublicProfile(created),
           message: `Đã tạo tài khoản ${created.email} thành công.`,
         })
       }
@@ -1009,65 +1221,76 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         const subAction = userActionMatch[2] || ''
         const targetUser = store.users.find((u) => u.id === targetId)
         if (!targetUser) {
-          return jsonResponse({ error: 'Không tìm thấy người dùng.' }, 404)
+          return jsonResponse({ success: false, error: 'Không tìm thấy người dùng.' }, 404)
         }
 
         if (method === 'POST' && subAction === 'approve') {
-          const body = await readJsonBody(req)
-          targetUser.status = 'approved'
+          targetUser.status = 'active'
           targetUser.email_verified = true
-          if (body.role === 'admin' || body.role === 'teacher') {
-            targetUser.role = body.role
-          }
           targetUser.approved_at = new Date().toISOString()
-          targetUser.approved_by = auth.user.email
-          targetUser.updated_at = new Date().toISOString()
+          targetUser.approved_by = auth.user.id
           await saveAuthStore(env, store)
-          return jsonResponse({ user: toPublicProfile(targetUser) })
+          return jsonResponse({
+            success: true,
+            profile: toPublicProfile(targetUser),
+            message: `Đã phê duyệt tài khoản ${targetUser.email}.`,
+          })
         }
 
         if (method === 'POST' && subAction === 'lock') {
           const body = await readJsonBody(req)
           targetUser.status = 'locked'
-          targetUser.locked_at = new Date().toISOString()
           targetUser.locked_reason = String(body.reason || 'Khóa bởi Quản trị viên')
-          targetUser.updated_at = new Date().toISOString()
           store.sessions = store.sessions.filter((s) => s.user_id !== targetUser.id)
           await saveAuthStore(env, store)
-          return jsonResponse({ user: toPublicProfile(targetUser) })
+          return jsonResponse({
+            success: true,
+            profile: toPublicProfile(targetUser),
+            message: `Đã khóa tài khoản ${targetUser.email}.`,
+          })
         }
 
         if (method === 'POST' && subAction === 'unlock') {
-          targetUser.status = 'approved'
-          targetUser.locked_at = null
+          targetUser.status = 'active'
           targetUser.locked_reason = null
-          targetUser.updated_at = new Date().toISOString()
           await saveAuthStore(env, store)
-          return jsonResponse({ user: toPublicProfile(targetUser) })
+          return jsonResponse({
+            success: true,
+            profile: toPublicProfile(targetUser),
+            message: `Đã mở khóa tài khoản ${targetUser.email}.`,
+          })
         }
 
         if (method === 'POST' && subAction === 'reset-password') {
           const body = await readJsonBody(req)
-          const newPw = String(body.new_password || '')
-          const pwErr = validatePasswordStrength(newPw)
-          if (pwErr) return jsonResponse({ error: pwErr }, 400)
-          targetUser.password_hash = await hashPassword(newPw)
-          targetUser.updated_at = new Date().toISOString()
+          const tempPw =
+            String(body.temporaryPassword || body.new_password || '').trim() ||
+            `Gv${randomHex(3)}123`
+          const pwErr = validatePasswordStrength(tempPw)
+          if (pwErr) return jsonResponse({ success: false, error: pwErr }, 400)
+          targetUser.password_hash = await hashPassword(tempPw)
           await saveAuthStore(env, store)
           return jsonResponse({
-            user: toPublicProfile(targetUser),
-            message: `Đã đặt lại mật khẩu cho ${targetUser.email}.`,
+            success: true,
+            temporaryPassword: tempPw,
+            message: `Đã đặt mật khẩu mới cho ${targetUser.email}.`,
           })
         }
 
         if (method === 'DELETE' && !subAction) {
           if (targetUser.id === auth.user.id) {
-            return jsonResponse({ error: 'Không thể tự xóa tài khoản Admin đang đăng nhập.' }, 400)
+            return jsonResponse(
+              { success: false, error: 'Không thể tự xóa tài khoản Admin đang đăng nhập.' },
+              400
+            )
           }
           store.users = store.users.filter((u) => u.id !== targetUser.id)
           store.sessions = store.sessions.filter((s) => s.user_id !== targetUser.id)
           await saveAuthStore(env, store)
-          return jsonResponse({ ok: true })
+          return jsonResponse({
+            success: true,
+            message: `Đã xóa tài khoản ${targetUser.email}.`,
+          })
         }
       }
 
@@ -1076,46 +1299,53 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         if (body.registration_mode) {
           store.appSettings.registration_mode = body.registration_mode
         }
-        if (Array.isArray(body.allowed_google_domains)) {
-          store.appSettings.allowed_google_domains = body.allowed_google_domains
+        if (typeof body.google_login_enabled === 'boolean') {
+          store.appSettings.google_login_enabled = body.google_login_enabled
         }
-        if (typeof body.session_remember_days === 'number') {
-          store.appSettings.session_remember_days = body.session_remember_days
+        if (typeof body.password_login_enabled === 'boolean') {
+          store.appSettings.password_login_enabled = body.password_login_enabled
         }
-        if (typeof body.require_email_verification === 'boolean') {
-          store.appSettings.require_email_verification = body.require_email_verification
+        if (typeof body.notify_admin_email === 'boolean') {
+          store.appSettings.notify_admin_email = body.notify_admin_email
         }
-        if (typeof body.admin_notification_email === 'string') {
-          store.appSettings.admin_notification_email = body.admin_notification_email.trim()
+        if (body.max_accounts !== undefined) {
+          store.appSettings.max_accounts = body.max_accounts
         }
         store.appSettings.updated_at = new Date().toISOString()
         await saveAuthStore(env, store)
-        return jsonResponse({ settings: store.appSettings })
+        return jsonResponse({
+          success: true,
+          appSettings: store.appSettings,
+          message: 'Đã cập nhật cài đặt hệ thống.',
+        })
       }
 
       if (method === 'POST' && path === '/api/admin/invites') {
         const body = await readJsonBody(req)
         const code =
-          String(body.custom_code || '')
+          String(body.customCode || body.custom_code || '')
             .trim()
             .toUpperCase() || `GV-${randomHex(3).toUpperCase()}`
+        const days = Number(body.expiresInDays ?? body.expires_in_days ?? 0)
         const invite: InviteRecord = {
           id: generateId('inv'),
           code,
           email: body.email ? normalizeEmail(body.email) : null,
-          role: body.role === 'admin' ? 'admin' : 'teacher',
-          max_uses: Number(body.max_uses) || 1,
+          max_uses: Number(body.maxUses ?? body.max_uses) || 1,
           used_count: 0,
-          expires_at: body.expires_in_days
-            ? new Date(Date.now() + Number(body.expires_in_days) * 86400000).toISOString()
-            : null,
-          note: body.note || null,
+          expires_at: days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : null,
           created_by: auth.user.email,
           created_at: new Date().toISOString(),
+          revoked: false,
         }
         store.invites.unshift(invite)
         await saveAuthStore(env, store)
-        return jsonResponse({ invite })
+        return jsonResponse({
+          success: true,
+          invite,
+          inviteUrl: `${url.origin}/auth/register?invite=${encodeURIComponent(invite.code)}`,
+          message: `Đã tạo mã mời ${invite.code}.`,
+        })
       }
 
       const inviteMatch = path.match(/^\/api\/admin\/invites\/([^/]+)(?:\/([^/]+))?$/)
@@ -1124,15 +1354,21 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         const sub = inviteMatch[2] || ''
         if (method === 'POST' && sub === 'revoke') {
           const inv = store.invites.find((i) => i.id === invId)
-          if (!inv) return jsonResponse({ error: 'Không tìm thấy mã mời.' }, 404)
-          inv.revoked_at = new Date().toISOString()
+          if (!inv) return jsonResponse({ success: false, error: 'Không tìm thấy mã mời.' }, 404)
+          inv.revoked = true
           await saveAuthStore(env, store)
-          return jsonResponse({ invite: inv })
+          return jsonResponse({
+            success: true,
+            message: `Đã thu hồi mã mời ${inv.code}.`,
+          })
         }
         if (method === 'DELETE' && !sub) {
           store.invites = store.invites.filter((i) => i.id !== invId)
           await saveAuthStore(env, store)
-          return jsonResponse({ ok: true })
+          return jsonResponse({
+            success: true,
+            message: 'Đã xóa mã mời.',
+          })
         }
       }
     }
@@ -1183,7 +1419,6 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         }
 
         await kvSet(env.DB, syncKeyForUser(userId), stateToSave)
-        // Đồng bộ bản chung cho giáo viên mặc định để mở trên mọi thiết bị đều thấy ngay
         if (userId !== 'default-teacher-id') {
           await kvSet(env.DB, syncKeyForUser('default-teacher-id'), stateToSave)
         }
@@ -1226,7 +1461,7 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         ok: true,
         provider: 'edge-simulated',
         message:
-          'Đã kiểm tra luồng thông báo trên Cloudflare Edge (Thêm RESEND_API_KEY trong Settings -> Environment Variables của Cloudflare để gửi email thật).',
+          'Đã kiểm tra luồng thông báo trên Cloudflare Edge (Thêm RESEND_API_KEY trong Settings -> Variables của Cloudflare để gửi email thật).',
       })
     }
 
@@ -1245,7 +1480,7 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         return jsonResponse(
           {
             error:
-              'Chưa cấu hình GEMINI_API_KEY trong Cloudflare Pages -> Settings -> Environment variables.',
+              'Chưa cấu hình GEMINI_API_KEY trong Cloudflare Pages -> Settings -> Variables.',
           },
           400
         )
@@ -1269,6 +1504,7 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
   } catch (err) {
     return jsonResponse(
       {
+        success: false,
         error: err instanceof Error ? err.message : 'Lỗi xử lý tại Cloudflare Edge',
       },
       500
@@ -1287,4 +1523,3 @@ export default {
     return handleApiRequest(request, env || {})
   },
 }
-
