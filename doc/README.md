@@ -21,6 +21,7 @@ Xây dựng một giải pháp Web App toàn diện, hoạt động mượt mà 
 - **Điểm danh 1-2 chạm**: Tối ưu thao tác trên di động, điểm danh nhanh, ghi chú bài giảng.
 - **Tự động hóa học phí**: Tính toán chuẩn xác theo số buổi có mặt thực tế, tạo tin nhắn nhắc học phí Zalo 1-chạm, xuất file Excel (`.xlsx`) chuyên nghiệp.
 - **Trợ lý thông báo**: Soạn lịch dạy hằng ngày gửi về Gmail cá nhân của giáo viên.
+- **Trợ lý AI HDSD & Kênh Liên hệ Admin**: Hộp chat góc màn hình tích hợp AI hướng dẫn sử dụng phần mềm (có guardrail bảo mật) cùng tab gửi đơn Hỗ trợ/Khiếu nại và chat 2 chiều trực tiếp với Admin.
 
 ---
 
@@ -45,7 +46,8 @@ Xây dựng một giải pháp Web App toàn diện, hoạt động mượt mà 
 ```
 app_gv/
 ├── frontend/             # Giao diện người dùng (React 18 + Vite + Tailwind CSS + Zustand)
-│   ├── functions/api/    # Cloudflare Pages Functions API ([[route]].ts)
+│   ├── functions/api/    # Entrypoint & router tổng Cloudflare Pages Functions ([[route]].ts)
+│   ├── edge-api/         # Edge API tách theo module (types, middleware, shared, modules/*)
 │   ├── src/              # Mã nguồn React (pages, components/onboarding, store, lib, types)
 │   ├── public/           # Tệp tĩnh (_routes.json, _redirects, favicon, icons)
 │   ├── Dockerfile        # Đóng gói frontend multi-stage

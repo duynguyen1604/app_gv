@@ -25,6 +25,7 @@
 | 💰 **Học Phí, Công Nợ FIFO & Lọc Theo Lớp** | $\text{Học phí} = \text{Số buổi CÓ MẶT} \times \text{Đơn giá}$. Bộ lọc theo **Tháng + Lớp**, hỗ trợ học thử miễn phí, học ghép, chốt tháng, phân bổ FIFO, nhắc Zalo 2 mẫu và xuất Excel (`.xlsx`) 5 sheet. |
 | 🔐 **Đa Tài Khoản & Google OAuth** | Đăng nhập/Đăng ký bằng Email/Mật khẩu hoặc **Google OAuth** (tự động kích hoạt không cần chờ Admin duyệt). Dữ liệu từng giáo viên tách biệt hoàn toàn, tài khoản mới bắt đầu sạch 100%. |
 | 🧭 **Hướng Dẫn Sử Dụng (Onboarding 6 Bước)** | Tự động hiện 1 lần cho tài khoản mới (Email & Google) với spotlight/tooltip chỉ dẫn từng khu vực; lưu trạng thái `onboarding_completed` trên server theo tài khoản và có nút **Hướng dẫn (?)** để xem lại bất cứ lúc nào. |
+| 💬 **Trợ Lý AI HDSD & Liên Hệ Admin** | Hộp chat góc màn hình hỗ trợ **AI HDSD** (Gemini + fallback rule-based, có guardrail chống hỏi ngoài luồng & bảo mật tài khoản) và tab **Liên hệ Admin** cho phép giáo viên gửi đơn *Hỗ trợ / Khiếu nại / Báo lỗi* kèm **chat 2 chiều** với Quản trị viên. |
 | 📆 **Google Calendar & Email Tự Động** | Đồng bộ 1 chiều sang lịch phụ `"Lịch dạy"` trên Google Calendar, gửi email lịch dạy hằng ngày qua Resend Edge API / Gmail SMTP Cron 24/7. |
 | ☁️ **Cloudflare Pages + D1 / Docker** | Chạy tức thì trên Cloudflare Pages Functions + Cloudflare D1 (`0ms` cold start, miễn phí, không ngủ đông) hoặc tự host qua Docker Compose + PostgreSQL 16. |
 
@@ -35,9 +36,10 @@
 ```
 app_gv/
 ├── 🌐 frontend/            # Giao diện người dùng (React 18, TypeScript, Vite, Tailwind CSS, Zustand)
-│   ├── functions/api/     # Cloudflare Pages Functions API ([[route]].ts) cho Auth, Sync D1, Email, AI
+│   ├── functions/api/     # Entrypoint & router tổng Cloudflare Pages Functions ([[route]].ts)
+│   ├── edge-api/          # Edge API tách theo module (types, middleware, shared, modules/{auth,profile,admin,support,sync,notification,ai,health,gcal})
 │   ├── src/
-│   │   ├── components/    # OnboardingTour, Schedule Modals, UI Buttons, TopBar, AppShell, BottomNav
+│   │   ├── components/    # OnboardingTour, HelpAssistantWidget, Schedule Modals, UI Buttons, TopBar, AppShell, BottomNav
 │   │   ├── pages/         # SchedulePage, ClassesPage, ClassDetailPage, FeesPage, SettingsPage, Auth & Admin
 │   │   ├── store/         # Zustand Stores (useAppStore, useAuthStore) & LocalStorage Persistence
 │   │   ├── lib/           # AI Parsers, Conflict Detectors, Debt Engine, Backend Sync, Auth API Helpers

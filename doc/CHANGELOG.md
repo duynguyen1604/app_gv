@@ -13,6 +13,7 @@ Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa b�
 
 ### Sửa đổi (Changed)
 - **Router tổng ([`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts))**: Rút gọn từ 2.879 dòng xuống còn ~78 dòng làm entrypoint + điều phối route con, giữ nguyên 100% URL, method, format request/response và mã lỗi.
+- **Tài liệu ([`README.md`](file:///d:/app_gv/README.md), [`doc/README.md`](file:///d:/app_gv/doc/README.md))**: Cập nhật kiến trúc thư mục mới (`frontend/edge-api/`) và bổ sung mô tả tính năng Trợ lý AI HDSD & Kênh Liên hệ Admin / Chat 2 chiều.
 
 ## [2026-11-14] - Bổ Sung Kênh Liên Hệ Admin / Gửi Đơn Khiếu Nại & Hỗ Trợ + Chat 2 Chiều Trong Chatbox
 
