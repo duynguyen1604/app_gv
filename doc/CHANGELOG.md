@@ -2,6 +2,9 @@
 
 Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa bỏ) trong dự án Quản lý Lịch dạy Giáo viên được ghi lại chi tiết tại tệp này theo định dạng chuẩn [Keep a Changelog](https://keepachangelog.com/).
 
+- **Cập nhật Tài liệu tổng quan ([`README.md`](file:///d:/app_gv/README.md), [`doc/README.md`](file:///d:/app_gv/doc/README.md))**:
+  * Bổ sung đầy đủ các tính năng mới nhất: Cloudflare Pages Functions + D1 Edge (`0ms` cold start), Google OAuth tự kích hoạt, Lịch học phát sinh có tùy chọn học phí riêng, Lọc học phí theo lớp, Lịch di động kiểu Google Calendar, và Hướng dẫn sử dụng 6 bước (`OnboardingTour`) lưu trạng thái theo tài khoản.
+
 ---
 
 ## [2026-11-14] - Bổ Sung Tính Năng "Hướng Dẫn Sử Dụng" (Interactive Step-by-Step Onboarding Tour) Lưu Trạng Thái Theo Tài Khoản Trên Server

@@ -29,8 +29,9 @@ Xây dựng một giải pháp Web App toàn diện, hoạt động mượt mà 
 | Thành phần | Công nghệ lựa chọn | Lý do sử dụng |
 | :--- | :--- | :--- |
 | **Giao diện (Frontend)** | React 18 + TypeScript + Vite | Tốc độ tải trang cực nhanh, kiểm soát chặt chẽ kiểu dữ liệu, bảo đảm tính ổn định. |
-| **Styling** | Tailwind CSS v3 + CSS Variables | Thiết kế Mobile-First, giao diện hiện đại, hỗ trợ Dark Mode / Light Mode hoàn hảo. |
-| **Hạ tầng Backend & Cron** | Docker + Node.js (Express) + PostgreSQL 16 | REST `/api/sync` hai chiều, database 11 bảng, cron gửi email 24/7. |
+| **Styling** | Tailwind CSS v3 + CSS Variables | Thiết kế Mobile-First (lịch di động kiểu Google Calendar), hỗ trợ Dark Mode / Light Mode hoàn hảo. |
+| **Cloudflare Edge & D1** | Cloudflare Pages Functions + D1 SQLite | Triển khai miễn phí, 0ms cold start, không tắt server khi nhàn rỗi; lưu Auth, Sync & `onboarding_completed`. |
+| **Hạ tầng Backend & Cron** | Docker + Node.js (Express) + PostgreSQL 16 | REST `/api/sync` hai chiều, hệ thống tài khoản + Google OAuth, đồng bộ Google Calendar 1 chiều, cron gửi email 24/7. |
 | **Quản lý trạng thái (State)** | Zustand + LocalStorage Persistence | Dữ liệu được lưu trữ trực tiếp trên trình duyệt, không bị mất khi reload hoặc mất mạng, phản hồi tức thì. |
 | **Xử lý ngày giờ** | `date-fns` (Locale Việt Nam) | Định dạng ngày tháng kiểu Việt Nam (`dd/MM/yyyy`), tuần bắt đầu từ Thứ Hai, múi giờ `Asia/Ho_Chi_Minh`. |
 | **Xử lý Excel** | SheetJS (`xlsx`) | Xuất file Excel bảng tính chuẩn (`.xlsx`) trực tiếp từ client. |
@@ -44,14 +45,17 @@ Xây dựng một giải pháp Web App toàn diện, hoạt động mượt mà 
 ```
 app_gv/
 ├── frontend/             # Giao diện người dùng (React 18 + Vite + Tailwind CSS + Zustand)
-│   ├── src/              # Mã nguồn React (pages, components, store, lib, types)
-│   ├── public/           # Tệp tĩnh (favicon, icons)
+│   ├── functions/api/    # Cloudflare Pages Functions API ([[route]].ts)
+│   ├── src/              # Mã nguồn React (pages, components/onboarding, store, lib, types)
+│   ├── public/           # Tệp tĩnh (_routes.json, _redirects, favicon, icons)
 │   ├── Dockerfile        # Đóng gói frontend multi-stage
 │   ├── nginx.conf        # Cấu hình Nginx reverse proxy
 │   └── package.json      # Dependencies frontend
+├── functions/api/        # Re-export Cloudflare Pages Functions khi deploy từ thư mục gốc
+├── cloudflare/           # Schema Cloudflare D1 (`d1-schema.sql`)
 ├── backend/              # Dịch vụ máy chủ (Node.js + Express + TypeScript + Cron)
-│   ├── src/              # Mã nguồn API & Cron job 24/7 (server, cron, mailer, sync, db)
-│   ├── sql/init.sql      # Schema khởi tạo 11 bảng PostgreSQL
+│   ├── src/              # Mã nguồn API & Cron job 24/7 (server, auth, cron, mailer, gcal, sync, db)
+│   ├── sql/init.sql      # Schema khởi tạo PostgreSQL
 │   ├── Dockerfile        # Đóng gói backend container
 │   └── package.json      # Dependencies backend
 ├── docker/               # Cấu hình phụ trợ Docker & Nginx
@@ -59,6 +63,7 @@ app_gv/
 │   ├── README.md         # Tổng quan dự án và khởi chạy
 │   ├── QUY_TAC_PHAT_TRIEN.md # Quy tắc phát triển bắt buộc
 │   ├── CHANGELOG.md      # Nhật ký thay đổi chi tiết
+│   ├── CLOUDFLARE_DEPLOY.md # Hướng dẫn deploy miễn phí Cloudflare Pages + D1
 │   ├── DOCKER_BACKEND.md # Hướng dẫn triển khai Docker Compose
 │   ├── TIEN_DO_DA_LAM_VA_CHUA_LAM.md # Tiến độ và tính năng
 │   ├── KIEN_TRUC_VA_MO_HINH_DU_LIEU.md # Kiến trúc và mô hình dữ liệu
