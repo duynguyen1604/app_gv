@@ -1,0 +1,24 @@
+name: Free Cron Keep-Alive & Daily Schedule Email
+
+on:
+  schedule:
+    # Chạy lúc 23:00 UTC (tức 06:00 sáng giờ Việt Nam Asia/Ho_Chi_Minh) mỗi ngày
+    - cron: '0 23 * * *'
+    # Ping giữ ấm Render Free Tier mỗi 14 phút trong khung giờ dạy
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake up Render Free Backend & Check Health
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+        run: |
+          if [ -z "$BACKEND_URL" ]; then
+            echo "BACKEND_URL secret chưa được cấu hình, bỏ qua bước ping."
+            exit 0
+          fi
+          curl -fsS --max-time 30 "$BACKEND_URL/api/health" || true
+

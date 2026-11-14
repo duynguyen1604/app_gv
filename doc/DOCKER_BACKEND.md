@@ -32,12 +32,14 @@ flowchart TD
 ### Các dịch vụ trong `docker-compose.yml`:
 1. **`postgres` (Database)**: 
    - Sử dụng image chính thức `postgres:16-alpine`.
-   - Tự động nạp cấu trúc 11 bảng cơ sở dữ liệu từ `backend/sql/init.sql` ngay lần đầu khởi tạo.
+   - Tự động nạp cấu trúc đầy đủ các bảng cơ sở dữ liệu (bao gồm `profiles`, `app_settings`, `invites`, `audit_log`, `students` với `trial_price`, `student_enrollments`, `student_status_history`, `session_guests`, `school_periods`, `school_schedule`, `school_week_configs`, `payment_transactions`, `month_locks`, `change_log`, `calendar_event_map`, `calendar_sync_log`, `gcal_tokens` và chính sách **Row Level Security - RLS**) từ `backend/sql/init.sql` và `backend/sql/002_supabase_auth_profiles.sql`.
    - Dữ liệu được bảo toàn bền vững trong Docker Volume `postgres_data`.
-2. **`backend` (API + Automated Cron)**:
+2. **`backend` (API + Automated Cron + Google Calendar One-Way Sync)**:
    - Viết bằng Node.js + TypeScript + Express.
-   - Tích hợp tiến trình `node-cron` chạy ngầm 24/7: mỗi phút kiểm tra cơ sở dữ liệu, nếu đến giờ đã đặt (`settings.notify_time`, mặc định 06:00 sáng theo giờ Việt Nam `Asia/Ho_Chi_Minh`), tự động truy vấn lịch dạy thực tế trong ngày và gửi email về hòm thư của giáo viên.
-   - Cung cấp API đồng bộ dữ liệu hai chiều (`GET/PUT /api/sync` gồm đủ lớp, học sinh, lịch, điểm danh, ghi chú buổi, học phí, cài đặt, nhật ký email) và API Gateway gọi Gemini AI an toàn.
+   - Tích hợp tiến trình `node-cron` chạy ngầm 24/7:
+     * Mỗi phút kiểm tra giờ gửi email (`settings.notify_time`, mặc định `06:00` sáng theo giờ Việt Nam `Asia/Ho_Chi_Minh`) để tự động truy vấn lịch dạy thực tế trong ngày và gửi email về hòm thư của giáo viên.
+     * Mỗi ngày lúc `01:00` sáng (`0 1 * * *`) tự động chạy tác vụ nền đẩy thêm các tuần mới phía trước lên lịch riêng `"Lịch dạy"` trên Google Calendar (`syncUserGoogleCalendar`).
+   - Cung cấp API đồng bộ dữ liệu hai chiều (`GET/PUT /api/sync`), các API đồng bộ một chiều Google Calendar (`/api/gcal/auth-url`, `/api/gcal/callback`, `/api/gcal/connect`, `/api/gcal/sync-now`, `/api/gcal/clear-events`, `/api/gcal/disconnect`, `/api/gcal/feed.ics`) với mã kết nối OAuth mã hóa **AES-256-GCM** lưu phía server (`gcal_tokens`), và API Gateway gọi Gemini AI an toàn.
    - Khi container khởi động, backend tự chạy `ensureSchema()` để tạo bảng/chỉ mục nếu volume Postgres chưa có schema hoặc schema cũ thiếu ràng buộc.
 3. **`frontend` (Web App + Nginx Reverse Proxy)**:
    - Build ứng dụng React/Vite bằng Docker multi-stage build siêu nhẹ.
@@ -113,4 +115,49 @@ Khi chạy bằng Docker:
 | **Dừng hệ thống** | `docker compose down` |
 | **Sao lưu dữ liệu PostgreSQL ra file SQL** | `docker exec -t app_gv_postgres pg_dump -U postgres app_gv > backup.sql` |
 | **Khôi phục dữ liệu từ file SQL** | `docker exec -i app_gv_postgres psql -U postgres app_gv < backup.sql` |
+
+---
+
+## ☁️ 5. Phương án Deploy Online 100% Miễn phí (0đ/tháng)
+
+Nếu không muốn bật máy tính cá nhân chạy Docker mà muốn đưa ứng dụng lên Internet miễn phí hoàn toàn (dùng tốt trên điện thoại iPhone/Android và máy tính ở mọi nơi), dự án đã được cấu hình sẵn bộ tệp triển khai **100% Free Tier**:
+
+### Kiến trúc Cloud 0đ:
+1. **Frontend (Giao diện Web & PWA)**: **Cloudflare Pages** (hoặc **Vercel Free**) — Băng thông không giới hạn, SSL miễn phí, tốc độ CDN toàn cầu. Đã cấu hình sẵn `frontend/public/_redirects` và `frontend/vercel.json`.
+2. **Database & Auth (Cơ sở dữ liệu PostgreSQL)**: **Supabase Free Tier** (hoặc **Neon.tech Free**) — 500MB PostgreSQL miễn phí trọn đời + 50.000 người dùng Supabase Auth miễn phí.
+3. **Backend API & Cron**: **Render.com Free Web Service** — Đã cấu hình sẵn tệp `render.yaml` ở thư mục gốc và hỗ trợ biến `DATABASE_URL` có SSL trong `backend/src/db.ts`.
+4. **Giữ ấm & Gửi Email tự động 24/7**: **GitHub Actions Free Cron** (`.github/workflows/cron-keepalive.yml`) kết hợp **Gmail App Password** (miễn phí 500 email/ngày).
+
+### Các bước thực hiện nhanh (10 phút):
+
+#### Bước 1: Tạo Database PostgreSQL miễn phí trên Supabase
+1. Đăng nhập [Supabase.com](https://supabase.com/) (bằng GitHub) $\rightarrow$ **New Project**.
+2. Vào mục **SQL Editor**, dán nội dung tệp `backend/sql/init.sql` và `backend/sql/002_supabase_auth_profiles.sql` rồi bấm **Run** để khởi tạo toàn bộ bảng và chính sách bảo mật RLS.
+3. Vào **Project Settings $\rightarrow$ Database $\rightarrow$ Connection string (URI)**, sao chép chuỗi kết nối `postgresql://postgres.[ref]:[password]@aws-0-...pooler.supabase.com:6543/postgres`.
+
+#### Bước 2: Deploy Backend miễn phí lên Render.com
+1. Đẩy mã nguồn dự án lên kho **GitHub** cá nhân của bạn.
+2. Đăng nhập [Render.com](https://render.com/) $\rightarrow$ **New + $\rightarrow$ Blueprint** (hoặc **Web Service**) và chọn kho GitHub của dự án (Render sẽ tự nhận tệp `render.yaml`).
+3. Tại mục **Environment Variables** trên Render, điền:
+   - `DATABASE_URL`: Chuỗi URI PostgreSQL vừa lấy từ Supabase.
+   - `ADMIN_EMAIL`: Email quản trị viên của bạn.
+   - `SMTP_USER` & `SMTP_PASS`: Gmail và Mật khẩu ứng dụng 16 ký tự (nếu dùng gửi lịch qua email).
+   - `FRONTEND_URL`: Địa chỉ trang web Frontend sau khi tạo ở Bước 3.
+4. Sau khi Render build xong, bạn sẽ nhận được URL Backend dạng `https://app-gv-backend.onrender.com`.
+
+#### Bước 3: Deploy Frontend miễn phí lên Cloudflare Pages (hoặc Vercel)
+1. Đăng nhập [Cloudflare Dashboard](https://dash.cloudflare.com/) $\rightarrow$ **Workers & Pages $\rightarrow$ Create $\rightarrow$ Pages $\rightarrow$ Connect to Git**.
+2. Chọn kho GitHub của dự án, thiết lập thông số Build:
+   - **Root directory**: `frontend`
+   - **Build command**: `npm run build`
+   - **Build output directory**: `dist`
+3. Thêm biến môi trường (Environment Variables):
+   - `VITE_API_URL`: `https://app-gv-backend.onrender.com` (URL Backend ở Bước 2).
+   - *(Tùy chọn)* `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY` nếu bật Google OAuth qua Supabase.
+4. Bấm **Save and Deploy** $\rightarrow$ Nhận ngay tên miền miễn phí `https://app-gv.pages.dev`.
+
+#### Bước 4: Bật GitHub Actions giữ ấm Backend & Cron 06:00 sáng
+1. Trên kho GitHub của bạn, vào **Settings $\rightarrow$ Secrets and variables $\rightarrow$ Actions $\rightarrow$ New repository secret**.
+2. Tạo secret tên `BACKEND_URL` với giá trị `https://app-gv-backend.onrender.com`.
+3. Workflow `.github/workflows/cron-keepalive.yml` sẽ tự động ping giữ ấm máy chủ miễn phí mỗi 14 phút và đánh thức tiến trình gửi email lịch dạy đúng 06:00 sáng giờ Việt Nam.
 

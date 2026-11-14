@@ -1,0 +1,524 @@
+{
+  "profiles": [
+    {
+      "id": "usr-admin-fixed-001",
+      "full_name": "Quản trị viên Hệ thống",
+      "email": "admin@lichday.vn",
+      "phone": "0901234567",
+      "school": "THPT Chuyên Hà Nội",
+      "avatar_url": null,
+      "role": "admin",
+      "status": "active",
+      "email_verified": true,
+      "auth_provider": "email",
+      "created_at": "2026-11-04T18:03:55.535Z",
+      "approved_by": "usr-admin-fixed-001",
+      "approved_at": "2026-11-04T18:03:55.535Z",
+      "last_login_at": "2026-11-14T08:32:56.223Z",
+      "locked_reason": null
+    },
+    {
+      "id": "usr-teacher-active-002",
+      "full_name": "Cô Nguyễn Thu Hà",
+      "email": "giaovien@lichday.vn",
+      "phone": "0912345678",
+      "school": "THCS Cầu Giấy",
+      "avatar_url": null,
+      "role": "teacher",
+      "status": "active",
+      "email_verified": true,
+      "auth_provider": "email",
+      "created_at": "2026-11-04T18:03:55.535Z",
+      "approved_by": "usr-admin-fixed-001",
+      "approved_at": "2026-11-04T18:03:55.535Z",
+      "last_login_at": "2026-11-14T08:33:22.337Z",
+      "locked_reason": null
+    },
+    {
+      "id": "usr-teacher-pending-003",
+      "full_name": "Thầy Trần Minh Quân",
+      "email": "choduyet@lichday.vn",
+      "phone": "0987654321",
+      "school": "THPT Yên Hòa",
+      "avatar_url": null,
+      "role": "teacher",
+      "status": "pending",
+      "email_verified": true,
+      "auth_provider": "email",
+      "created_at": "2026-11-04T18:03:55.535Z",
+      "approved_by": null,
+      "approved_at": null,
+      "last_login_at": "2026-11-04T19:25:53.568Z",
+      "locked_reason": null
+    }
+  ],
+  "authUsers": [
+    {
+      "id": "usr-admin-fixed-001",
+      "email": "admin@lichday.vn",
+      "password_hash": "scrypt$88917a7f56127c5121d660dc007d44f0$79d2d1b682e55b15cbe58a0d00e8ca179f2aa7b6e50ea72f407b6fdc5d747ae90ae63b962f2113383841077061463d5120129514d3b98911ca0adcadc76b9e02",
+      "email_verified": true,
+      "verification_token": null,
+      "verification_expires_at": null,
+      "reset_token": null,
+      "reset_expires_at": null,
+      "failed_login_attempts": 0,
+      "locked_until": null,
+      "last_verification_sent_at": null,
+      "last_admin_notify_at": null,
+      "token_version": 1,
+      "created_at": "2026-11-04T18:03:55.535Z"
+    },
+    {
+      "id": "usr-teacher-active-002",
+      "email": "giaovien@lichday.vn",
+      "password_hash": "scrypt$b58ed008dd03100e8a3a145694aab7f5$c68ddb8f9734eae51ced0b46f3aa4fdb92d34791b92dea668272d9cda98565509070e965f6fa86c5532a3f6383e8849414cfee3ea93c222362a04d5726798453",
+      "email_verified": true,
+      "verification_token": null,
+      "verification_expires_at": null,
+      "reset_token": null,
+      "reset_expires_at": null,
+      "failed_login_attempts": 0,
+      "locked_until": null,
+      "last_verification_sent_at": null,
+      "last_admin_notify_at": null,
+      "token_version": 1,
+      "created_at": "2026-11-04T18:03:55.535Z"
+    },
+    {
+      "id": "usr-teacher-pending-003",
+      "email": "choduyet@lichday.vn",
+      "password_hash": "scrypt$97e6573fcba48f218a425a049033ce68$bce7e1b8db9bfdaedb751fc7129b8bd75b4320da80667f600f824fcfe58be7294a02f6c84d28dcb70a1c5be9472135cc7f75d4372ac0e5681dc754ea2164b35a",
+      "email_verified": true,
+      "verification_token": null,
+      "verification_expires_at": null,
+      "reset_token": null,
+      "reset_expires_at": null,
+      "failed_login_attempts": 0,
+      "locked_until": null,
+      "last_verification_sent_at": null,
+      "last_admin_notify_at": null,
+      "token_version": 1,
+      "created_at": "2026-11-04T18:03:55.535Z"
+    }
+  ],
+  "appSettings": {
+    "id": "global",
+    "registration_mode": "pending_approval",
+    "google_login_enabled": true,
+    "password_login_enabled": true,
+    "notify_admin_email": true,
+    "max_accounts": null,
+    "updated_at": "2026-11-04T18:03:55.535Z"
+  },
+  "auditLogs": [
+    {
+      "id": "aud-1794645202362-3e5415",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-14T08:33:22.362Z"
+    },
+    {
+      "id": "aud-1794645198392-4defc5",
+      "actor_id": "usr-admin-fixed-001",
+      "target_id": "usr-admin-fixed-001",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-14T08:33:18.393Z"
+    },
+    {
+      "id": "aud-1794645176248-b2d192",
+      "actor_id": "usr-admin-fixed-001",
+      "target_id": "usr-admin-fixed-001",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-14T08:32:56.248Z"
+    },
+    {
+      "id": "aud-1794645173100-e456bc",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-14T08:32:53.100Z"
+    },
+    {
+      "id": "aud-1794634202759-c7abce",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-14T05:30:02.759Z"
+    },
+    {
+      "id": "aud-1794634091313-2a3da3",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-14T05:28:11.313Z"
+    },
+    {
+      "id": "aud-1794633846191-dabb99",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-14T05:24:06.191Z"
+    },
+    {
+      "id": "aud-1794633809114-a653da",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-14T05:23:29.114Z"
+    },
+    {
+      "id": "aud-1794633633082-93f790",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-14T05:20:33.082Z"
+    },
+    {
+      "id": "aud-1793837784144-5628db",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-05T00:16:24.144Z"
+    },
+    {
+      "id": "aud-1793837782256-654959",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-05T00:16:22.256Z"
+    },
+    {
+      "id": "aud-1793825900224-bf8bef",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T20:58:20.224Z"
+    },
+    {
+      "id": "aud-1793825823338-1b3041",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T20:57:03.338Z"
+    },
+    {
+      "id": "aud-1793825812013-6db834",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T20:56:52.013Z"
+    },
+    {
+      "id": "aud-1793825420097-9a1ad3",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T20:50:20.097Z"
+    },
+    {
+      "id": "aud-1793825324166-c646d6",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T20:48:44.166Z"
+    },
+    {
+      "id": "aud-1793825285979-4d59ca",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T20:48:05.979Z"
+    },
+    {
+      "id": "aud-1793825014515-54d3f6",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T20:43:34.515Z"
+    },
+    {
+      "id": "aud-1793825010126-e98058",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T20:43:30.126Z"
+    },
+    {
+      "id": "aud-1793824954112-629c93",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T20:42:34.112Z"
+    },
+    {
+      "id": "aud-1793824951708-9f5886",
+      "actor_id": "usr-admin-fixed-001",
+      "target_id": "usr-admin-fixed-001",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T20:42:31.708Z"
+    },
+    {
+      "id": "aud-1793824916031-b44f7e",
+      "actor_id": "usr-admin-fixed-001",
+      "target_id": "usr-admin-fixed-001",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T20:41:56.031Z"
+    },
+    {
+      "id": "aud-1793820999640-4ca166",
+      "actor_id": "usr-admin-fixed-001",
+      "target_id": "usr-admin-fixed-001",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:36:39.640Z"
+    },
+    {
+      "id": "aud-1793820994157-306cde",
+      "actor_id": "usr-admin-fixed-001",
+      "target_id": "usr-admin-fixed-001",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:36:34.157Z"
+    },
+    {
+      "id": "aud-1793820992697-94e842",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:36:32.697Z"
+    },
+    {
+      "id": "aud-1793820985228-a98eee",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:36:25.228Z"
+    },
+    {
+      "id": "aud-1793820983286-9104ca",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:36:23.286Z"
+    },
+    {
+      "id": "aud-1793820474632-42f273",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:27:54.632Z"
+    },
+    {
+      "id": "aud-1793820472491-37f20b",
+      "actor_id": "usr-admin-fixed-001",
+      "target_id": "usr-admin-fixed-001",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:27:52.491Z"
+    },
+    {
+      "id": "aud-1793820373247-5b7e62",
+      "actor_id": "usr-admin-fixed-001",
+      "target_id": "usr-admin-fixed-001",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:26:13.247Z"
+    },
+    {
+      "id": "aud-1793820357226-b3697b",
+      "actor_id": "usr-teacher-pending-003",
+      "target_id": "usr-teacher-pending-003",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:25:57.226Z"
+    },
+    {
+      "id": "aud-1793820353594-3362f7",
+      "actor_id": "usr-teacher-pending-003",
+      "target_id": "usr-teacher-pending-003",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:25:53.594Z"
+    },
+    {
+      "id": "aud-1793820351769-f1a0f0",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:25:51.769Z"
+    },
+    {
+      "id": "aud-1793820342833-981b46",
+      "actor_id": "usr-teacher-active-002",
+      "target_id": "usr-teacher-active-002",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:25:42.834Z"
+    },
+    {
+      "id": "aud-1793820338668-f1caaa",
+      "actor_id": "usr-admin-fixed-001",
+      "target_id": "usr-admin-fixed-001",
+      "action": "logout",
+      "detail": {},
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:25:38.668Z"
+    },
+    {
+      "id": "aud-1793820328236-fd83a2",
+      "actor_id": "usr-admin-fixed-001",
+      "target_id": "usr-admin-fixed-001",
+      "action": "login_success",
+      "detail": {
+        "provider": "email",
+        "rememberMe": true
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T19:25:28.236Z"
+    },
+    {
+      "id": "aud-1793815435756",
+      "actor_id": "usr-admin-fixed-001",
+      "target_id": "usr-admin-fixed-001",
+      "action": "system_init",
+      "detail": {
+        "note": "Khởi tạo hệ thống tài khoản và bảo vệ ADMIN_EMAIL phía server"
+      },
+      "ip_masked": "127.0.0.x",
+      "created_at": "2026-11-04T18:03:55.535Z"
+    }
+  ],
+  "invites": []
+}

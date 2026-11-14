@@ -1,0 +1,21 @@
+{
+  "name": "Lịch Dạy — Quản lý Lịch dạy & Lớp học",
+  "short_name": "Lịch Dạy GV",
+  "description": "Ứng dụng quản lý thời khóa biểu trường, lớp dạy thêm, điểm danh và công nợ học phí dành cho giáo viên Việt Nam.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F8FAFC",
+  "theme_color": "#1A73E8",
+  "lang": "vi",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
+

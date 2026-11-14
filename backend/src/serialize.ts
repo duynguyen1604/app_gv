@@ -4,7 +4,14 @@ function isDateOnlyColumn(key: string): boolean {
     key === 'original_date' ||
     key === 'new_date' ||
     key === 'valid_from' ||
-    key === 'valid_to'
+    key === 'valid_to' ||
+    key === 'week_start' ||
+    key === 'start_date' ||
+    key === 'left_date' ||
+    key === 'from_date' ||
+    key === 'to_date' ||
+    key === 'effective_from' ||
+    key === 'paid_at'
   )
 }
 

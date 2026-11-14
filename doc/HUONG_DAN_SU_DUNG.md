@@ -4,6 +4,25 @@ Tài liệu này hướng dẫn từng bước cụ thể cách sử dụng ứn
 
 ---
 
+## 🔐 Bước 0: Đăng ký, Xác minh Email & Đăng nhập Tài khoản
+
+1. **Đăng ký tài khoản mới**:
+   * Tại màn hình **Đăng nhập**, bấm **"Đăng ký ngay"**.
+   * Nhập **Họ và tên**, **Email**, **Mật khẩu** (tối thiểu 8 ký tự, có cả chữ cái và chữ số; thanh độ mạnh sẽ hiển thị trực tiếp), **Trường/Đơn vị** và **Số điện thoại** (tùy chọn).
+   * Tích chọn đồng ý **Điều khoản và Chính sách bảo mật** (dữ liệu học sinh thuộc quyền riêng tư tuyệt đối của từng giáo viên, kể cả Admin cũng không xem được) và bấm **"Đăng ký tài khoản"**.
+2. **Xác minh địa chỉ Email**:
+   * Kiểm tra hộp thư để bấm vào nút **"Xác minh địa chỉ Email"** (có nút **"Gửi lại thư xác minh"** sau mỗi 60 giây).
+   * Nếu email đã xác minh trùng với `ADMIN_EMAIL` cấu hình trên máy chủ, tài khoản tự động trở thành **Quản trị viên (Admin)** và kích hoạt ngay. Với tài khoản giáo viên ở chế độ mặc định, màn hình **"Tài khoản đang chờ Admin duyệt"** sẽ hiển thị kèm nút **"Gửi lại thông báo cho Admin"**.
+3. **Đăng nhập & Giữ phiên trên iPhone (Màn hình chính PWA)**:
+   * Có thể đăng nhập bằng **Email + Mật khẩu** (mặc định bật *"Ghi nhớ đăng nhập"* 30 ngày) hoặc bấm **"Tiếp tục với Google"** (chuyển trang toàn màn hình, tương thích hoàn toàn khi mở từ Màn hình chính iPhone).
+4. **Cổng Quản trị Hệ thống (Dành riêng cho tài khoản Admin `/admin`)**:
+   * Khi đăng nhập bằng tài khoản Admin (`email === ADMIN_EMAIL`), ứng dụng mở thẳng **Cổng Quản trị Hệ thống** với 4 phân hệ: **Duyệt & Quản lý Giáo viên**, **Mã mời Giáo viên**, **Chế độ Đăng ký & Bảo mật**, và **Nhật ký Kiểm toán**.
+   * Nếu Admin cũng có lịch dạy cá nhân, có thể bấm mục **"Lịch dạy cá nhân"** ở thanh bên để chuyển sang công cụ xếp lịch riêng.
+5. **Trang Hồ sơ & Bảo mật Cá nhân (`/profile` cho cả Admin và Giáo viên)**:
+   * Bấm vào mục **"Hồ sơ"** trên thanh điều hướng để cập nhật Họ tên, Số điện thoại, Trường/Đơn vị công tác, Đổi mật khẩu, hoặc bấm **"Đăng xuất khỏi tất cả các thiết bị khác"**. Giáo viên có thể tải bản sao lưu `.json` hoặc tự xóa tài khoản cá nhân tại đây.
+
+---
+
 ## 🚀 Bước 1: Khởi tạo Lớp học và Học sinh
 
 ### 1.1. Thêm lớp dạy thêm mới
@@ -35,17 +54,25 @@ Tài liệu này hướng dẫn từng bước cụ thể cách sử dụng ứn
    ```
 3. Bấm **"Thêm học sinh"**. Toàn bộ học sinh sẽ được tạo ngay lập tức.
 4. Nếu học sinh nào có **giá học phí riêng** (ví dụ con giáo viên được giảm giá), bấm biểu tượng bút chì để chỉnh sửa và điền vào ô *"Giá riêng/buổi"*.
+5. **Học sinh Học thử**: Phí học thử ban đầu mặc định **bằng học phí đi học chính thức**, và giáo viên có thể thay đổi trạng thái (*Đang học / Học thử / Đã nghỉ*) cũng như chỉnh mức phí học thử (*Bằng phí học / Miễn phí 0đ / Nhập mức riêng*) bất cứ lúc nào tại Hồ sơ học sinh, Điểm danh hoặc Bảng học phí.
 
 ---
 
-## 📅 Bước 2: Quản lý Thời gian biểu Tuần & Thao tác Linh hoạt
+## 📅 Bước 2: Quản lý Thời gian biểu kiểu Google Calendar & Bảng tiết của Trường
 
-Màn hình **"Tuần"** là nơi thầy/cô sử dụng nhiều nhất trong ngày.
+Màn hình **"Lịch"** được thiết kế bám sát trải nghiệm của Google Calendar trên cả máy tính và điện thoại.
 
-### 2.1. Nhận diện các khối lịch
-* 🟦 **Khối xanh dương**: Tiết dạy ở trường phổ thông.
+### 2.1. Chuyển đổi các chế độ xem & Lọc Sáng / Chiều / Tối
+* **Các chế độ xem**: Chọn trên thanh công cụ: **Ngày** (`D`) | **Tuần** (`W`) | **Tháng** (`M`) | **4 ngày** (`X`) | **Lịch biểu** (`A`) | **Bảng tiết của trường** (`P`).
+* **Bộ lọc buổi nhanh**: Bấm **Tất cả | 🌅 Sáng | ☀️ Chiều | 🌙 Tối** để phóng to và chỉ tập trung vào khung giờ cần xem.
+* **Bảng tiết của trường**: Hiển thị dạng bảng giấy truyền thống (cột `T2–T7`, hàng `S1–S5` và `C1–C5`), bấm trực tiếp vào từng ô để điền tên lớp (`10A1`), đặt là tiết **"Trực"** hoặc xóa trống.
+* **Xuất ảnh Thời khóa biểu tuần**: Bấm nút **Xuất lịch** để tải ảnh PNG toàn tuần (chia sẵn Sáng / Chiều / Tối) để gửi Zalo hoặc lưu về điện thoại, hoặc tải file `.ics` cho Google Calendar.
+
+### 2.2. Nhận diện các khối lịch
+* 🟦 **Khối xanh dương**: Tiết dạy ở trường phổ thông (tự gộp các tiết liền nhau cùng lớp như `S1–S2 · 10A1`).
+* Slate **Khối xám xanh (nhãn Trực)**: Tiết trực giám thị / trực trường / dự giờ.
 * 🟧 **Khối cam**: Lớp dạy thêm theo lịch cố định hằng tuần.
-* 🟪 **Khối tím (nhãn Phát sinh)**: Buổi dạy thêm ngoài lịch hoặc buổi dạy bù.
+* 🟪 **Khối tím (nhãn Phát sinh / Bù)**: Buổi dạy thêm ngoài lịch hoặc buổi dạy bù.
 * ⬜ **Khối mờ có gạch ngang**: Buổi đã bị dời hoặc đã bị hủy. Có mũi tên chỉ sang ngày giờ mới.
 
 ### 2.2. Dời một buổi học sang ngày khác
@@ -113,42 +140,48 @@ Màn hình **"Tuần"** là nơi thầy/cô sử dụng nhiều nhất trong ng�
 
 ---
 
-## 💵 Bước 5: Tổng hợp Học phí & Xuất Báo cáo
+## 💵 Bước 5: Quản lý Công nợ Học phí FIFO, Ghi nhận Khoản thu & Xuất Báo cáo (Mục 2.9)
 
-Vào cuối mỗi tháng, mở tab **"Học phí"**:
+Vào tab **"Học phí"**, bạn có 2 chế độ chuyển nhanh trên thanh tiêu đề: **"Theo tháng"** và **"Công nợ"**.
 
-1. **Chọn tháng cần xem**: Ví dụ `Tháng 11/2026`.
-2. **Kiểm tra bảng tính tiền**:
-   * Hệ thống tự động đếm số buổi học sinh **Có mặt**.
-   * Số tiền = Số buổi có mặt $\times$ Đơn giá.
-   * Học sinh vắng hoặc học thử không bị tính tiền.
-3. **Đánh dấu học sinh đã đóng**: Bấm vào vòng tròn bên cạnh tên học sinh để chuyển thành dấu tích xanh `✓ Đã đóng`. Thẻ tổng hợp trên đầu sẽ cập nhật tức thì: *Tổng phải thu*, *Đã thu*, *Còn lại*.
-4. **Nhắc học phí qua Zalo**:
-   * Bấm vào biểu tượng tin nhắn bên cạnh tên học sinh.
-   * Hệ thống tự động tạo sẵn tin nhắn chi tiết số buổi và số tiền.
-   * Bấm **"Sao chép tin"** rồi dán gửi cho phụ huynh qua Zalo/SMS.
-5. **Xuất file Excel (`.xlsx`)**:
-   * Bấm nút **"Xuất Excel"** ở góc trên cùng.
-   * File Excel chuyên nghiệp chứa đầy đủ danh sách học sinh, số buổi có mặt, vắng, thành tiền và số điện thoại phụ huynh sẽ được tải ngay về máy.
-6. **Xem thống kê so sánh giữa các lớp**: Bấm nút **"Thống kê"** để xem biểu đồ tỷ trọng thu nhập của từng lớp.
+1. **Chế độ "Theo tháng" & Chi tiết từng buổi của học sinh**:
+   * Chọn tháng cần xem (ví dụ `Tháng 11/2026`).
+   * Hệ thống tự động đếm số buổi **Có mặt trong giai đoạn Đang học** $\times$ Đơn giá = **Phải thu**; các buổi trong giai đoạn **Học thử** hiển thị ở cột **"Học thử"** với đơn giá `0đ` kèm dòng ghi chú (ví dụ `"Học thử 04/11–06/11 (2 buổi miễn phí), chính thức từ 11/11"`).
+   * Bấm trực tiếp vào **tên học sinh** hoặc nút **"Chi tiết"** để mở ngăn **Chi tiết học phí tháng** (`StudentFeeDetailDrawer`) gồm lịch tháng thu nhỏ chấm màu từng buổi, bảng liệt kê từng buổi học trong tháng (sửa nhanh điểm danh ngay tại dòng) và 3 nút: **"Gửi phụ huynh"**, **"Xuất ảnh"** (PNG), **"Xuất PDF"**.
+   * Cột **Đã thu** và **Còn thiếu / Dư** tự động phân bổ các khoản thu vào tháng nợ cũ nhất trước (**FIFO**). Mỗi tháng hiển thị trạng thái: `Đủ`, `Còn thiếu`, `Chưa đóng` hoặc `Đóng dư`.
+   * **Chốt tháng**: Khi chọn một lớp cụ thể, bấm nút **"Chốt tháng"** để khóa số tiền phải thu của tháng đó (các thay đổi điểm danh hay đơn giá về sau sẽ không làm đổi số đã chốt trừ khi bấm **"Mở chốt"**).
+2. **Chuyển Học thử sang Đang học, Học ghép & Chuyển lớp giữa tháng**:
+   * Trong trang Chi tiết lớp, khi học sinh học thử đã có mặt đủ 2 buổi, thanh nhắc màu vàng sẽ hiện ở đầu trang $\rightarrow$ Bấm **"Chuyển sang đang học"** để chọn ngày bắt đầu tính phí và xem trước học phí dự kiến.
+   * Để cho học sinh học bù/học ghép sang lớp khác 1–2 buổi, bấm **"Học ghép 1-2 buổi"** (trong danh sách điểm danh hoặc tab Học ghép). Để đăng ký học thêm dài hạn ở lớp thứ 2 hoặc chuyển hẳn sang lớp mới giữa tháng, bấm **"Học thêm dài hạn"** hoặc **"Chuyển lớp"**.
+3. **Ghi nhận khoản thu (và gộp khoản thu cho anh chị em)**:
+   * Bấm nút **"Thu tiền"** ở dòng học sinh (hoặc trong trang Chi tiết lớp $\rightarrow$ tab Học sinh).
+   * Nhập số tiền (mặc định bằng số đang nợ, có nút gợi ý nhanh **"Đóng đủ số còn thiếu"**), chọn ngày thu, hình thức (`Tiền mặt` / `Chuyển khoản` / `Khác`) và ghi chú.
+   * Nếu phụ huynh có nhiều con theo học (anh chị em cùng SĐT hoặc tên phụ huynh), bật tùy chọn **"Gộp khoản thu cho nhiều học sinh cùng phụ huynh"** để nhập tổng tiền và tự chia theo nợ của từng em (cho phép sửa tay).
+4. **Chế độ "Công nợ" & Sổ học phí**:
+   * Chuyển sang chế độ **"Công nợ"** để xem 3 chỉ số: `Tổng đang nợ`, `Tổng đang dư`, `Số phụ huynh đang nợ` và danh sách học sinh đang nợ (kể cả học sinh đã nghỉ mà còn nợ), mặc định sắp xếp theo **nợ lâu nhất**.
+   * Bấm **"Sổ học phí"** để mở bảng theo thứ tự thời gian gồm từng tháng (phải thu), từng khoản thu, số dư sau mỗi dòng và nhật ký sửa/xóa khoản thu.
+5. **Nhắc học phí qua Zalo (2 mẫu tin)**:
+   * Bấm biểu tượng tin nhắn cạnh tên học sinh $\rightarrow$ Chọn mẫu **"Nhắc nhẹ"** hoặc **"Nhắc lần 2"**. Tin nhắn tự động liệt kê rõ từng tháng còn thiếu và tổng số tiền cần đóng.
+6. **Xuất file Excel (`.xlsx`) 5 Sheet**:
+   * Bấm nút **"Xuất Excel"** để tải file bảng tính gồm 5 sheet: `Học phí YYYY-MM`, `Chi tiết từng buổi`, `Học ghép và học thêm`, `Công nợ` và `Các khoản thu`.
 
 ---
 
-## ⚙️ Bước 6: Cài đặt Tiện ích & Sao lưu Dữ liệu
+## ⚙️ Bước 6: Đồng bộ Google Calendar Một chiều, Thông báo Gmail & Sao lưu (Mục 2.10)
 
 Vào tab **"Cài đặt"**:
 
-1. **Chế độ Sáng / Tối**: Gạt công tắc Dark Mode để bảo vệ mắt khi làm việc buổi tối.
-2. **Đồng bộ PostgreSQL**: Khi Docker backend đang chạy, dữ liệu tự đẩy lên database. Bấm **Đồng bộ ngay** nếu cần kéo/đẩy tay.
-3. **Cấu hình AI (Google Gemini)**: Nếu có API Key cá nhân của Google Gemini, điền vào ô để tăng cường độ chính xác khi đọc ảnh TKB phức tạp.
-4. **Cài đặt thông báo Gmail**:
-   * Nhập địa chỉ Gmail của thầy/cô.
-   * Chọn giờ gửi hằng ngày (vd `06:00` sáng).
-   * Bấm **"Xem trước email"** để kiểm tra nội dung lịch thực tế hôm nay.
-5. **Quản lý ngày nghỉ lễ**:
-   * Chọn ngày lễ (vd `2026-11-20`) và nhập tên ngày nghỉ.
-   * Hệ thống sẽ tự động ẩn toàn bộ lịch dạy trong ngày đó trên thời gian biểu.
-6. **Sao lưu dữ liệu (Backup & Restore)**:
-   * Bấm **"Sao lưu ra file JSON"** để tải file dữ liệu về máy tính/điện thoại cất giữ.
-   * Khi đổi điện thoại hoặc cài lại máy, chỉ cần bấm **"Khôi phục dữ liệu"** và chọn file backup để lấy lại toàn bộ lịch và điểm danh nguyên vẹn.
+1. **Đồng bộ lịch sang Google Calendar (Một chiều)**:
+   * Mở nhóm **"Google Calendar & AI"** $\rightarrow$ Bấm **"Kết nối Google Calendar"**.
+   * Ứng dụng tự tạo một lịch phụ riêng tên **"Lịch dạy"** trên Google Calendar để xem trên điện thoại, đồng hồ thông minh và nhận thông báo nhắc trước giờ dạy mà không lẫn với lịch cá nhân.
+   * Tùy chỉnh: Bật/tắt đồng bộ, chọn nội dung (`Chỉ lịch trường` / `Chỉ dạy thêm` / `Cả hai`), chọn nhiều mốc phút nhắc riêng cho lịch trường và dạy thêm (mặc định `30 phút`), chọn số tuần đồng bộ phía trước (mặc định `8 tuần`), và bật nhắc **"Đi sớm để kịp di chuyển"** khi 2 ca liên tiếp khác địa điểm cách nhau dưới 20 phút.
+   * Có các nút **"Đồng bộ ngay"**, **"Xóa sự kiện đã đồng bộ"**, **"Ngắt kết nối"** và bảng **Lịch sử đồng bộ**.
+2. **Chế độ Sáng / Tối**: Gạt công tắc Dark Mode để bảo vệ mắt khi làm việc buổi tối.
+3. **Đồng bộ PostgreSQL**: Khi Docker backend đang chạy, dữ liệu tự đẩy lên database. Bấm **Đồng bộ DB** nếu cần kéo/đẩy tay.
+4. **Cấu hình AI (Google Gemini)**: Điền Gemini API Key cá nhân để tăng độ chính xác khi đọc ảnh TKB trường hoặc tin nhắn Zalo.
+5. **Cài đặt thông báo Gmail**: Nhập địa chỉ Gmail, chọn giờ gửi hằng ngày (vd `06:00` sáng) và bấm **"Xem trước nội dung email"**.
+6. **Quản lý ngày nghỉ lễ & Sao lưu dữ liệu (Backup & Restore)**:
+   * Thêm ngày nghỉ lễ để tự động ẩn toàn bộ lịch dạy trong ngày đó.
+   * Bấm **"Tải file sao lưu (.json)"** hoặc **"Khôi phục từ file JSON"** để bảo toàn toàn bộ dữ liệu lịch, điểm danh, giao dịch thu học phí và chốt tháng.
+
 

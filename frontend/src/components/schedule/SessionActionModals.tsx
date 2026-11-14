@@ -1,59 +1,91 @@
-import { useState, useMemo } from 'react'
-import { Calendar, Clock, AlertTriangle, MessageSquare, Copy, Check, ArrowRight, RotateCcw } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { AlertTriangle, MessageSquare, Copy, Check, ArrowRight } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { checkScheduleConflict } from '../../lib/conflictDetector'
 import { useAppStore } from '../../store/useAppStore'
 import { formatFullDate, formatDate } from '../../lib/dateUtils'
-import { cn } from '../../lib/utils'
 import type { CalendarSession } from '../../types'
 import toast from 'react-hot-toast'
 
-// 1. Move Session Modal
+// 1. Move Session Modal (Supports both button click & Drag-and-Drop confirmation "Chỉ tuần này")
 export function MoveSessionModal({
   open,
   onClose,
   session,
+  prefillDate,
+  prefillStart,
+  prefillEnd,
 }: {
   open: boolean
   onClose: () => void
   session: CalendarSession | null
+  prefillDate?: string
+  prefillStart?: string
+  prefillEnd?: string
 }) {
-  const { 
-    classes, 
-    schoolSchedule, 
-    scheduleRules, 
-    sessionExceptions, 
-    extraSessions, 
-    addSessionException 
+  const {
+    classes,
+    schoolSchedule,
+    schoolPeriods,
+    scheduleRules,
+    sessionExceptions,
+    extraSessions,
+    addSessionException,
+    updateExtraSession,
   } = useAppStore()
 
-  const [newDate, setNewDate] = useState(() => session?.date || '')
-  const [newStart, setNewStart] = useState(() => session?.start_time || '18:00')
-  const [newEnd, setNewEnd] = useState(() => session?.end_time || '20:00')
+  const [newDate, setNewDate] = useState(() => prefillDate || session?.date || '')
+  const [newStart, setNewStart] = useState(() => prefillStart || session?.start_time || '18:00')
+  const [newEnd, setNewEnd] = useState(() => prefillEnd || session?.end_time || '20:00')
   const [reason, setReason] = useState('')
   const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (open && session) {
+      setNewDate(prefillDate || session.date)
+      setNewStart(prefillStart || session.start_time)
+      setNewEnd(prefillEnd || session.end_time)
+      setReason(session.reason || '')
+    }
+  }, [open, session, prefillDate, prefillStart, prefillEnd])
 
   // Live conflict check
   const conflict = useMemo(() => {
     if (!newDate || !newStart || !newEnd || !session) return null
+    const excludeId = session.id.startsWith('extra-')
+      ? session.id.replace('extra-', '')
+      : session.exception_id || session.rule_id
     return checkScheduleConflict({
       date: newDate,
       start_time: newStart,
       end_time: newEnd,
       class_id: session.class_id,
       location: session.location,
+      exclude_id: excludeId,
       schoolSchedule,
+      schoolPeriods,
       scheduleRules,
       sessionExceptions,
       extraSessions,
       classes,
     })
-  }, [newDate, newStart, newEnd, session, schoolSchedule, scheduleRules, sessionExceptions, extraSessions, classes])
+  }, [
+    newDate,
+    newStart,
+    newEnd,
+    session,
+    schoolSchedule,
+    schoolPeriods,
+    scheduleRules,
+    sessionExceptions,
+    extraSessions,
+    classes,
+  ])
 
   if (!session) return null
 
   const parentMessage = `Kính gửi quý phụ huynh lớp ${session.class_name},
-Buổi học ngày ${formatDate(session.date)} (${session.start_time}–${session.end_time}) xin phép được dời sang:
+Buổi học ngày ${formatDate(session.date)} (${session.start_time}–${session.end_time}) xin phép được dời sang (chỉ áp dụng tuần này):
 📅 ${formatFullDate(newDate || session.date)}
 ⏰ ${newStart} – ${newEnd}
 ${reason ? `Lý do: ${reason}\n` : ''}Mong quý phụ huynh và các em học sinh lưu ý. Trân trọng!`
@@ -66,14 +98,29 @@ ${reason ? `Lý do: ${reason}\n` : ''}Mong quý phụ huynh và các em học si
   }
 
   const handleConfirm = () => {
+    if (session.id.startsWith('extra-')) {
+      const extraId = session.id.replace('extra-', '')
+      updateExtraSession(extraId, {
+        date: newDate,
+        start_time: newStart,
+        end_time: newEnd,
+        note: reason || session.note || null,
+      })
+      toast.success(`Đã dời buổi phát sinh sang ngày ${formatDate(newDate)}!`)
+      onClose()
+      return
+    }
+
     if (!session.rule_id) {
       toast.error('Không tìm thấy thông tin lịch của buổi này')
       return
     }
 
+    const origDate = session.moved_from_date || session.date
+
     addSessionException({
       rule_id: session.rule_id,
-      original_date: session.date,
+      original_date: origDate,
       action: 'moved',
       new_date: newDate,
       new_start: newStart,
@@ -82,15 +129,22 @@ ${reason ? `Lý do: ${reason}\n` : ''}Mong quý phụ huynh và các em học si
       needs_makeup: false,
     })
 
-    toast.success(`Đã dời buổi học sang ngày ${formatDate(newDate)}!`)
+    toast.success(`Đã dời buổi học sang ngày ${formatDate(newDate)} (Chỉ tuần này)!`)
     onClose()
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={`Dời lịch: ${session.class_name}`} size="md">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Dời lịch (Chỉ tuần này): ${session.class_name}`}
+      subtitle="Tuần sau lịch học cố định vẫn giữ nguyên như cũ"
+      size="md"
+    >
       <div className="flex flex-col gap-4">
         <div className="p-2.5 bg-blue-50 dark:bg-blue-950/30 rounded-xl text-xs text-blue-700 dark:text-blue-300">
-          Buổi gốc: <strong>{formatFullDate(session.date)}</strong> ({session.start_time}–{session.end_time})
+          Buổi gốc: <strong>{formatFullDate(session.moved_from_date || session.date)}</strong> (
+          {session.start_time}–{session.end_time})
         </div>
 
         <div>
@@ -108,7 +162,7 @@ ${reason ? `Lý do: ${reason}\n` : ''}Mong quý phụ huynh và các em học si
             <label className="label">Giờ bắt đầu *</label>
             <input
               type="time"
-              className="input"
+              className="input font-mono"
               value={newStart}
               onChange={e => setNewStart(e.target.value)}
             />
@@ -117,7 +171,7 @@ ${reason ? `Lý do: ${reason}\n` : ''}Mong quý phụ huynh và các em học si
             <label className="label">Giờ kết thúc *</label>
             <input
               type="time"
-              className="input"
+              className="input font-mono"
               value={newEnd}
               onChange={e => setNewEnd(e.target.value)}
             />
@@ -157,21 +211,22 @@ ${reason ? `Lý do: ${reason}\n` : ''}Mong quý phụ huynh và các em học si
         )}
 
         {/* Pre-composed message for parents */}
-        <div className="p-3 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-100 dark:border-gray-800">
+        <div className="p-3 bg-gray-50 dark:bg-[#282A2E]/80 rounded-xl border border-gray-100 dark:border-[#37393F]">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1">
               <MessageSquare size={13} />
               Soạn sẵn tin gửi phụ huynh:
             </span>
             <button
+              type="button"
               onClick={handleCopy}
-              className="btn-ghost text-xs text-blue-600 dark:text-blue-400 py-0.5 px-2 flex items-center gap-1"
+              className="btn-ghost text-xs text-[#1A73E8] dark:text-[#8AB4F8] py-0.5 px-2 flex items-center gap-1"
             >
               {copied ? <Check size={12} /> : <Copy size={12} />}
               {copied ? 'Đã chép' : 'Sao chép'}
             </button>
           </div>
-          <p className="text-xs text-gray-500 whitespace-pre-line font-mono bg-white dark:bg-gray-900 p-2 rounded border border-gray-200 dark:border-gray-700">
+          <p className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-line font-mono bg-white dark:bg-[#1E1F22] p-2.5 rounded-lg border border-gray-200 dark:border-[#37393F]">
             {parentMessage}
           </p>
         </div>
@@ -185,7 +240,7 @@ ${reason ? `Lý do: ${reason}\n` : ''}Mong quý phụ huynh và các em học si
             onClick={handleConfirm}
             className="btn-primary flex-1 flex items-center justify-center gap-1.5"
           >
-            <ArrowRight size={16} /> Xác nhận dời
+            <ArrowRight size={16} /> Chỉ tuần này
           </button>
         </div>
       </div>
@@ -248,7 +303,8 @@ Kính mong quý phụ huynh thông cảm. Trân trọng!`
     <Modal open={open} onClose={onClose} title={`Hủy buổi: ${session.class_name}`} size="md">
       <div className="flex flex-col gap-4">
         <div className="p-2.5 bg-red-50 dark:bg-red-950/30 rounded-xl text-xs text-red-700 dark:text-red-300">
-          Buổi học: <strong>{formatFullDate(session.date)}</strong> ({session.start_time}–{session.end_time})
+          Buổi học: <strong>{formatFullDate(session.date)}</strong> ({session.start_time}–
+          {session.end_time})
         </div>
 
         <div>
@@ -274,21 +330,22 @@ Kính mong quý phụ huynh thông cảm. Trân trọng!`
         </label>
 
         {/* Pre-composed message for parents */}
-        <div className="p-3 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-100 dark:border-gray-800">
+        <div className="p-3 bg-gray-50 dark:bg-[#282A2E]/80 rounded-xl border border-gray-100 dark:border-[#37393F]">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1">
               <MessageSquare size={13} />
               Soạn sẵn tin gửi phụ huynh:
             </span>
             <button
+              type="button"
               onClick={handleCopy}
-              className="btn-ghost text-xs text-blue-600 dark:text-blue-400 py-0.5 px-2 flex items-center gap-1"
+              className="btn-ghost text-xs text-[#1A73E8] dark:text-[#8AB4F8] py-0.5 px-2 flex items-center gap-1"
             >
               {copied ? <Check size={12} /> : <Copy size={12} />}
               {copied ? 'Đã chép' : 'Sao chép'}
             </button>
           </div>
-          <p className="text-xs text-gray-500 whitespace-pre-line font-mono bg-white dark:bg-gray-900 p-2 rounded border border-gray-200 dark:border-gray-700">
+          <p className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-line font-mono bg-white dark:bg-[#1E1F22] p-2.5 rounded-lg border border-gray-200 dark:border-[#37393F]">
             {parentMessage}
           </p>
         </div>
@@ -297,11 +354,7 @@ Kính mong quý phụ huynh thông cảm. Trân trọng!`
           <button type="button" onClick={onClose} className="btn-secondary flex-1">
             Đóng
           </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            className="btn-danger flex-1"
-          >
+          <button type="button" onClick={handleConfirm} className="btn-danger flex-1">
             Xác nhận hủy buổi
           </button>
         </div>
@@ -310,40 +363,56 @@ Kính mong quý phụ huynh thông cảm. Trân trọng!`
   )
 }
 
-// 3. Add Extra Session Modal
+// 3. Add Extra Session Modal (Full details)
 export function AddExtraSessionModal({
   open,
   onClose,
   initialDate,
+  initialStart,
+  initialEnd,
   makeupForId,
 }: {
   open: boolean
   onClose: () => void
   initialDate?: string
+  initialStart?: string
+  initialEnd?: string
   makeupForId?: string | null
 }) {
-  const { 
-    classes, 
-    schoolSchedule, 
-    scheduleRules, 
-    sessionExceptions, 
-    extraSessions, 
-    addExtraSession 
+  const {
+    classes,
+    schoolSchedule,
+    schoolPeriods,
+    scheduleRules,
+    sessionExceptions,
+    extraSessions,
+    addExtraSession,
   } = useAppStore()
 
-  // Find exception if makeup
   const makeupEx = sessionExceptions.find(e => e.id === makeupForId)
   const makeupRule = scheduleRules.find(r => r.id === makeupEx?.rule_id)
 
   const [classId, setClassId] = useState(() => makeupRule?.class_id || classes[0]?.id || '')
   const [date, setDate] = useState(() => initialDate || new Date().toISOString().substring(0, 10))
-  const [startTime, setStartTime] = useState('18:00')
-  const [endTime, setEndTime] = useState('20:00')
-  const [note, setNote] = useState(() => makeupEx ? `Dạy bù cho buổi ngày ${formatDate(makeupEx.original_date)}` : '')
+  const [startTime, setStartTime] = useState(() => initialStart || '18:00')
+  const [endTime, setEndTime] = useState(() => initialEnd || '19:30')
+  const [note, setNote] = useState(() =>
+    makeupEx ? `Dạy bù cho buổi ngày ${formatDate(makeupEx.original_date)}` : ''
+  )
+
+  useEffect(() => {
+    if (open) {
+      if (makeupRule?.class_id) setClassId(makeupRule.class_id)
+      else if (!classId && classes[0]?.id) setClassId(classes[0].id)
+      if (initialDate) setDate(initialDate)
+      if (initialStart) setStartTime(initialStart)
+      if (initialEnd) setEndTime(initialEnd)
+      setNote(makeupEx ? `Dạy bù cho buổi ngày ${formatDate(makeupEx.original_date)}` : '')
+    }
+  }, [open, initialDate, initialStart, initialEnd, makeupForId, makeupRule, makeupEx, classes])
 
   const selectedClass = classes.find(c => c.id === classId)
 
-  // Live conflict check
   const conflict = useMemo(() => {
     if (!date || !startTime || !endTime) return null
     return checkScheduleConflict({
@@ -353,12 +422,25 @@ export function AddExtraSessionModal({
       class_id: classId,
       location: selectedClass?.location,
       schoolSchedule,
+      schoolPeriods,
       scheduleRules,
       sessionExceptions,
       extraSessions,
       classes,
     })
-  }, [date, startTime, endTime, classId, selectedClass, schoolSchedule, scheduleRules, sessionExceptions, extraSessions, classes])
+  }, [
+    date,
+    startTime,
+    endTime,
+    classId,
+    selectedClass,
+    schoolSchedule,
+    schoolPeriods,
+    scheduleRules,
+    sessionExceptions,
+    extraSessions,
+    classes,
+  ])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -381,7 +463,11 @@ export function AddExtraSessionModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={makeupForId ? 'Xếp lịch dạy bù' : 'Thêm buổi phát sinh'}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={makeupForId ? 'Xếp lịch dạy bù' : 'Thêm buổi phát sinh (Chi tiết)'}
+    >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {makeupEx && (
           <div className="p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-700 dark:text-amber-300">
@@ -398,7 +484,9 @@ export function AddExtraSessionModal({
             onChange={e => setClassId(e.target.value)}
           >
             {classes.map(c => (
-              <option key={c.id} value={c.id}>{c.name} {c.location ? `(${c.location})` : ''}</option>
+              <option key={c.id} value={c.id}>
+                {c.name} {c.location ? `(${c.location})` : ''}
+              </option>
             ))}
           </select>
         </div>
@@ -418,7 +506,7 @@ export function AddExtraSessionModal({
             <label className="label">Giờ bắt đầu *</label>
             <input
               type="time"
-              className="input"
+              className="input font-mono"
               value={startTime}
               onChange={e => setStartTime(e.target.value)}
             />
@@ -427,7 +515,7 @@ export function AddExtraSessionModal({
             <label className="label">Giờ kết thúc *</label>
             <input
               type="time"
-              className="input"
+              className="input font-mono"
               value={endTime}
               onChange={e => setEndTime(e.target.value)}
             />
@@ -478,4 +566,3 @@ export function AddExtraSessionModal({
     </Modal>
   )
 }
-

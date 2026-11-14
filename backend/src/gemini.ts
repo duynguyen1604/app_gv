@@ -77,18 +77,32 @@ ${text}`
 }
 
 export function buildSchoolImagePrompt(): string {
-  return `Bạn là trợ lý AI đọc ảnh thời khóa biểu của trường học Việt Nam.
-Hãy đọc bảng thời khóa biểu và trích xuất danh sách tất cả các tiết dạy thành JSON mảng.
-Mỗi phần tử gồm:
-- id: chuỗi id duy nhất
-- weekday: số từ 1 đến 7 (1=Thứ 2, 2=Thứ 3, 3=Thứ 4, 4=Thứ 5, 5=Thứ 6, 6=Thứ 7, 7=Chủ nhật)
-- period: tên tiết, vd "Tiết 1", "Tiết 2-3"
-- start_time: giờ bắt đầu (HH:mm), vd "07:00"
-- end_time: giờ kết thúc (HH:mm), vd "07:45"
-- class_name: tên lớp dạy ở trường, vd "10A1", "11B2"
-- subject: tên môn học, vd "Toán", "Văn", "Lý"
-- room: tên phòng học, vd "P.102" (nếu có, không có thì để rỗng "")
-- confidence: độ tin cậy từ 0.0 đến 1.0
+  return `Bạn là trợ lý AI chuyên đọc bảng Thời khóa biểu trường học Việt Nam (cấp THCS/THPT).
+Cấu trúc bảng tiêu chuẩn:
+- Dòng tiêu đề trên cùng thường ghi: Tên giáo viên, "Áp dụng từ ngày dd/mm/yyyy" (hoặc tuần bắt đầu), và "Số tiết: X".
+- Cột: Thứ 2 (1) đến Thứ 7 (6) hoặc Chủ nhật (7).
+- Hàng buổi sáng: Tiết 1..5 -> period_code = "S1".."S5" (session = "morning").
+- Hàng buổi chiều: Tiết 1..4 (hoặc 1..5) -> period_code = "C1".."C4" (session = "afternoon").
+- Nếu một buổi chiều ghi "Trực" (dù ghi ở 1 ô hay gộp cả buổi chiều): trả về 1 phần tử có cell_type = "duty", session = "afternoon", period_code = "C1", class_name = "Trực", start_time = "13:30", end_time = "16:30".
 
-Chỉ trả về JSON thuần hợp lệ.`
+Trả về CHỈ một đối tượng JSON theo đúng cấu trúc:
+{
+  "teacher_name": "Họ tên giáo viên (nếu có) hoặc null",
+  "week_start": "YYYY-MM-DD (ngày Thứ 2 của tuần áp dụng nếu đọc được) hoặc null",
+  "declared_period_count": số_tiết_ghi_trên_tiêu_đề_hoặc_null,
+  "cells": [
+    {
+      "weekday": 1..7,
+      "session": "morning" | "afternoon",
+      "period": 1..5,
+      "period_code": "S1".."S5" | "C1".."C5",
+      "cell_type": "class" | "duty" | "other",
+      "class_name": "10A6, 12A9, Trực...",
+      "subject": "Toán...",
+      "room": "P.201...",
+      "confidence": 0.0 - 1.0
+    }
+  ]
+}
+Chỉ trả về JSON hợp lệ.`
 }

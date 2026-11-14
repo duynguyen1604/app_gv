@@ -42,9 +42,18 @@ export function getWeekdayName(weekday: number, full = false): string {
   return full ? VI_WEEKDAYS_FULL[idx] : VI_WEEKDAYS[idx]
 }
 
-// Convert JS Date weekday (0=Sun) to our weekday (1=Mon...7=Sun)
-export function dateToWeekday(date: Date): number {
-  const day = date.getDay() // 0=Sun, 1=Mon...6=Sat
+// Get short weekday name (accepts 1=Mon..7=Sun or YYYY-MM-DD string or Date)
+export function getWeekdayShort(val: number | string | Date): string {
+  if (typeof val === 'number') {
+    return getWeekdayName(val, false)
+  }
+  return getWeekdayName(dateToWeekday(val), false)
+}
+
+// Convert JS Date or YYYY-MM-DD string to our weekday (1=Mon...7=Sun)
+export function dateToWeekday(date: Date | string): number {
+  const d = typeof date === 'string' ? parseISO(date) : date
+  const day = d.getDay() // 0=Sun, 1=Mon...6=Sat
   return day === 0 ? 7 : day
 }
 
@@ -89,6 +98,18 @@ export function getCurrentMonth(): string {
   return format(new Date(), 'yyyy-MM')
 }
 
+export function nextMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  const dt = new Date(y, m, 1)
+  return format(dt, 'yyyy-MM')
+}
+
+export function prevMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  const dt = new Date(y, m - 2, 1)
+  return format(dt, 'yyyy-MM')
+}
+
 // Parse YYYY-MM-DD string to Date
 export function parseDateStr(dateStr: string): Date {
   return parseISO(dateStr)
@@ -121,6 +142,12 @@ export function timeRangesOverlap(
   const s2 = timeToMinutes(start2)
   const e2 = timeToMinutes(end2)
   return s1 < e2 && s2 < e1
+}
+
+export const timeOverlap = timeRangesOverlap
+
+export function timeDiffMinutes(timeA: string, timeB: string): number {
+  return timeToMinutes(timeB) - timeToMinutes(timeA)
 }
 
 // Convert HH:mm to minutes

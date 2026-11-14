@@ -1,70 +1,259 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Light Mode Design Tokens (Material 3 / Google Calendar inspired - soft off-whites & slates) */
+  --bg-app: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #F1F5F9;
+  --bg-elevated: #FFFFFF;
+  --bg-hover: #F1F5F9;
+
+  --text-primary: #1F2937;
+  --text-secondary: #4B5563;
+  --text-muted: #6B7280;
+
+  --border-subtle: #E5E7EB;
+  --border-default: #DAE0E7;
+  --border-strong: #CBD5E1;
+
+  /* Event semantic tokens */
+  --color-school-bg: #E8F0FE;
+  --color-school-border: #1A73E8;
+  --color-school-text: #174EA6;
+
+  --color-tutoring-bg: #FEF0E6;
+  --color-tutoring-border: #E65100;
+  --color-tutoring-text: #9A3412;
+
+  --color-extra-bg: #F3E8FF;
+  --color-extra-border: #7C3AED;
+  --color-extra-text: #5B21B6;
+
+  --color-duty-bg: #F1F5F9;
+  --color-duty-border: #64748B;
+  --color-duty-text: #334155;
+
+  --color-warning-bg: #FEE2E2;
+  --color-warning-border: #DC2626;
+  --color-warning-text: #991B1B;
+
+  --color-confirm-bg: #FEF9C3;
+  --color-confirm-border: #D97706;
+  --color-confirm-text: #92400E;
+
+  /* Time-of-day subtle tints (Sáng / Chiều / Tối) */
+  --tint-morning: rgba(254, 249, 195, 0.16);
+  --tint-afternoon: rgba(254, 215, 170, 0.12);
+  --tint-evening: rgba(224, 231, 255, 0.18);
+
+  /* Radii & Spacing (4px / 8px scale) */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 12px 28px -4px rgba(15, 23, 42, 0.14), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+}
+
+.dark {
+  /* Dark Mode Design Tokens (Soft dark slate, never pure #000000) */
+  --bg-app: #131314;
+  --bg-surface: #1E1F22;
+  --bg-subtle: #282A2E;
+  --bg-elevated: #2B2D31;
+  --bg-hover: #313338;
+
+  --text-primary: #E3E3E3;
+  --text-secondary: #C4C7C5;
+  --text-muted: #8E918F;
+
+  --border-subtle: #2D2F34;
+  --border-default: #37393F;
+  --border-strong: #44474E;
+
+  /* Event semantic tokens in Dark Mode */
+  --color-school-bg: rgba(59, 130, 246, 0.22);
+  --color-school-border: #60A5FA;
+  --color-school-text: #DBEAFE;
+
+  --color-tutoring-bg: rgba(249, 115, 22, 0.22);
+  --color-tutoring-border: #FB923C;
+  --color-tutoring-text: #FFEDD5;
+
+  --color-extra-bg: rgba(139, 92, 246, 0.24);
+  --color-extra-border: #A78BFA;
+  --color-extra-text: #EDE9FE;
+
+  --color-duty-bg: rgba(100, 116, 139, 0.26);
+  --color-duty-border: #94A3B8;
+  --color-duty-text: #E2E8F0;
+
+  --color-warning-bg: rgba(239, 68, 68, 0.22);
+  --color-warning-border: #F87171;
+  --color-warning-text: #FEE2E2;
+
+  --color-confirm-bg: rgba(234, 179, 8, 0.22);
+  --color-confirm-border: #FACC15;
+  --color-confirm-text: #FEF9C3;
+
+  /* Time-of-day subtle tints in Dark Mode */
+  --tint-morning: rgba(250, 204, 21, 0.035);
+  --tint-afternoon: rgba(251, 146, 60, 0.035);
+  --tint-evening: rgba(99, 102, 241, 0.045);
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 28px -4px rgba(0, 0, 0, 0.6);
+}
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
   }
+
+  html {
+    font-family: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, sans-serif;
+    /* Mobile base font size >= 15px, Desktop >= 14px */
+    font-size: 15px;
+    overflow-x: hidden;
+  }
+
+  @media (min-width: 768px) {
+    html {
+      font-size: 14px;
+    }
+  }
+
   body {
-    @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
-    font-family: 'Inter', system-ui, sans-serif;
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    font-family: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+    overflow-x: hidden;
+    margin: 0;
   }
+
+  /* Prevent iOS Safari zoom on input focus by ensuring >= 16px on mobile (except compact toolbar selects) */
+  @media (max-width: 767px) {
+    input:not(.toolbar-input), textarea, select:not(.toolbar-select) {
+      font-size: 16px !important;
+    }
+  }
+
   input, textarea, select {
     @apply focus:outline-none;
+  }
+
+  /* Accessible keyboard focus ring */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-1 dark:ring-blue-400 dark:ring-offset-gray-900;
+  }
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none select-none;
+    min-height: 44px;
   }
+  @media (min-width: 768px) {
+    .btn {
+      min-height: 36px;
+    }
+  }
+
   .btn-primary {
-    @apply btn bg-blue-600 text-white hover:bg-blue-700 px-4 py-2.5 text-sm;
+    @apply btn bg-[#1A73E8] text-white hover:bg-[#1557B0] shadow-sm px-4 py-2 text-sm;
   }
   .btn-secondary {
-    @apply btn bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 px-4 py-2.5 text-sm;
+    @apply btn bg-gray-100 text-gray-700 hover:bg-gray-200/80 dark:bg-[#282A2E] dark:text-gray-200 dark:hover:bg-[#313338] border border-gray-200/80 dark:border-[#37393F] px-4 py-2 text-sm;
   }
   .btn-danger {
-    @apply btn bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 px-4 py-2.5 text-sm;
+    @apply btn bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300 border border-red-200 dark:border-red-900/60 px-4 py-2 text-sm;
   }
   .btn-ghost {
-    @apply btn text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 px-3 py-2 text-sm;
+    @apply btn text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-[#282A2E] px-3 py-1.5 text-sm;
   }
   .btn-icon {
-    @apply btn p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800;
+    @apply inline-flex items-center justify-center p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#282A2E] transition-colors duration-150 active:scale-95;
+    min-width: 40px;
+    min-height: 40px;
   }
+  @media (min-width: 768px) {
+    .btn-icon {
+      min-width: 34px;
+      min-height: 34px;
+    }
+  }
+
   .card {
-    @apply bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    @apply transition-shadow duration-150;
   }
-  .input {
-    @apply w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors;
+
+  .input,
+  .input-field {
+    @apply w-full min-w-0 max-w-full rounded-xl border border-slate-300 dark:border-[#37393F] bg-white dark:bg-[#282A2E] px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/20 transition-all duration-150;
+    min-height: 42px;
   }
+  select.input,
+  select.input-field {
+    @apply truncate pr-8;
+  }
+  @media (min-width: 768px) {
+    .input,
+    .input-field {
+      min-height: 38px;
+    }
+  }
+
   .label {
-    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1;
+    @apply block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5;
   }
   .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
   .section-title {
-    @apply text-base font-semibold text-gray-900 dark:text-gray-100;
+    @apply text-base font-bold text-gray-900 dark:text-gray-100 tracking-tight;
   }
   .bottom-nav-item {
-    @apply flex flex-col items-center gap-0.5 py-2 px-3 text-xs font-medium transition-colors;
+    @apply flex flex-col items-center justify-center gap-1 py-1.5 px-2 text-[11px] font-medium transition-all duration-150 min-h-[52px];
   }
 }
 
-/* Safe area for mobile */
+/* Safe area for iPhone Home Indicator & Status Bar */
 .pb-safe {
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 .pt-safe {
-  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-top: max(0.5rem, env(safe-area-inset-top));
 }
 
-/* Hide scrollbar */
+/* Scrollbar utilities */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -73,36 +262,57 @@
   display: none;
 }
 
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.4);
+  border-radius: 9999px;
+}
+
 /* Smooth transitions */
 .page-transition {
-  @apply transition-all duration-200;
+  @apply transition-all duration-200 ease-out;
 }
 
-/* Custom number formatting */
-.money::after {
-  content: 'đ';
-}
-
-/* Attendance buttons */
+/* Attendance Pill Buttons (Mobile & Desktop) */
 .attend-btn {
-  @apply flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150 active:scale-95 border-2;
+  @apply flex-1 py-2 px-3 text-xs font-semibold rounded-full transition-all duration-150 active:scale-95 border flex items-center justify-center gap-1 select-none min-h-[40px] tablet:min-h-[32px];
 }
 .attend-present {
-  @apply attend-btn border-green-500 text-green-700 dark:text-green-400;
+  @apply attend-btn border-emerald-500/80 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30;
 }
 .attend-present.active {
-  @apply bg-green-500 text-white dark:text-white;
+  @apply bg-emerald-600 border-emerald-600 text-white dark:bg-emerald-500 dark:border-emerald-500 dark:text-gray-950 shadow-sm;
 }
 .attend-absent {
-  @apply attend-btn border-red-400 text-red-700 dark:text-red-400;
+  @apply attend-btn border-red-400/80 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30;
 }
 .attend-absent.active {
-  @apply bg-red-400 text-white dark:text-white;
+  @apply bg-red-600 border-red-600 text-white dark:bg-red-500 dark:border-red-500 dark:text-white shadow-sm;
 }
 .attend-excused {
-  @apply attend-btn border-yellow-400 text-yellow-700 dark:text-yellow-400;
+  @apply attend-btn border-amber-400/90 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30;
 }
 .attend-excused.active {
-  @apply bg-yellow-400 text-white dark:text-white;
+  @apply bg-amber-500 border-amber-500 text-white dark:bg-amber-400 dark:border-amber-400 dark:text-gray-950 shadow-sm;
 }
 
+/* Print optimization */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+}
