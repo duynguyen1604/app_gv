@@ -173,5 +173,5 @@ Toàn bộ logic giao diện, nghiệp vụ tính toán, cơ chế lưu trữ c�
 | **Giai đoạn 4**: Email Gmail hằng ngày, Nhắc học phí Zalo, Xuất Excel | **100%** | Client hoàn thành 100%; Đã bổ sung Docker Backend + 24/7 Cron Service gửi email khi tắt máy. |
 | **Giai đoạn 5**: Nghỉ lễ, Sao chép tuần, In ấn, Thống kê thu nhập, Sao lưu | **100%** | Hoàn thành toàn bộ các tính năng mở rộng. |
 | **Hạ tầng Docker**: Compose, Postgres 16, Backend API, Nginx | **100%** | Đã sẵn sàng `docker compose up -d` với đầy đủ tài liệu hướng dẫn. |
-| **Triển khai Cloud 100% trên Cloudflare (0đ, Không bao giờ tắt Server)** & **Thời khóa biểu thực tế** | **100%** | Nạp sẵn 14 lớp dạy thêm + lịch Dạy Trường (Sáng 7h-11h45 T2-T6, Chiều 14h-16h30 T2/T4/T6); tích hợp sẵn Cloudflare Pages Functions (`frontend/functions/api/[[route]].ts`) + Cloudflare D1 Database (`cloudflare/d1-schema.sql`, `wrangler.toml`) chạy tức thì 0ms cold start. |
+| **Triển khai Cloud 100% trên Cloudflare (0đ, Không bao giờ tắt Server)** & **Thời khóa biểu thực tế** | **100%** | Nạp sẵn 14 lớp dạy thêm + lịch Dạy Trường (Sáng 7h-11h45 T2-T6, Chiều 14h-16h30 T2/T4/T6); tích hợp sẵn Cloudflare Pages Functions (`frontend/functions/api/[[route]].ts`) + Cloudflare D1 Database (`cloudflare/d1-schema.sql`) chạy tức thì 0ms cold start. |
 

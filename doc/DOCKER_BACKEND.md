@@ -128,7 +128,7 @@ Thay vì dùng Render.com bản miễn phí (bị ngủ sau 15 phút không dùn
 ### Các tệp đã được cấu hình sẵn trong dự án:
 - [`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts) & [`functions/api/[[route]].ts`](file:///d:/app_gv/functions/api/[[route]].ts): Toàn bộ Backend API (`/api/auth/*`, `/api/profile/*`, `/api/admin/*`, `/api/sync`, `/api/email/test`, `/api/ai/*`) chạy trực tiếp trên Cloudflare Pages Functions.
 - [`cloudflare/d1-schema.sql`](file:///d:/app_gv/cloudflare/d1-schema.sql): Cấu trúc bảng `kv_store` cho Cloudflare D1 (hệ thống cũng tự động chạy lệnh `CREATE TABLE IF NOT EXISTS` ngay lần truy cập đầu tiên nên không cần chạy SQL thủ công).
-- [`frontend/wrangler.toml`](file:///d:/app_gv/frontend/wrangler.toml) & [`wrangler.toml`](file:///d:/app_gv/wrangler.toml): Cấu hình chuẩn cho Cloudflare Pages.
+- Không sử dụng file `wrangler.toml` để Cloudflare Pages Dashboard luôn mở khóa nút **`+ Add`** tại mục **Settings $\rightarrow$ Bindings**.
 
 ### Hướng dẫn từng bước Deploy lên Cloudflare (Chỉ mất ~5 phút):
 
