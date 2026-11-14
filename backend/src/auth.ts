@@ -1136,6 +1136,9 @@ export async function loginOrLinkGoogleAccount(params: {
     profile.email_verified = true
     authUser.email_verified = true
     authUser.verification_token = null
+    if (profile.status !== 'locked') {
+      profile.status = 'active' // Đăng nhập bằng Google tự động duyệt active
+    }
     if (params.avatarUrl && !profile.avatar_url) {
       profile.avatar_url = params.avatarUrl
     }
@@ -1149,8 +1152,7 @@ export async function loginOrLinkGoogleAccount(params: {
     }
 
     const userId = `usr-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`
-    const initialStatus: AccountStatus =
-      isTargetAdmin || store.appSettings.registration_mode === 'open' ? 'active' : 'pending'
+    const initialStatus: AccountStatus = 'active' // Đăng ký bằng Google tự động kích hoạt ngay, KHÔNG cần Admin duyệt
 
     profile = {
       id: userId,
@@ -1164,8 +1166,8 @@ export async function loginOrLinkGoogleAccount(params: {
       email_verified: true,
       auth_provider: 'google',
       created_at: now,
-      approved_by: isTargetAdmin ? userId : null,
-      approved_at: initialStatus === 'active' ? now : null,
+      approved_by: isTargetAdmin ? userId : 'GOOGLE_OAUTH_AUTO',
+      approved_at: now,
       last_login_at: now,
       locked_reason: null,
     }

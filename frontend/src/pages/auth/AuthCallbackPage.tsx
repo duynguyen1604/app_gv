@@ -185,55 +185,57 @@ export function AuthCallbackPage() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                Chọn nhanh tài khoản để kiểm tra:
+            {import.meta.env.DEV && (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Chọn nhanh tài khoản để kiểm tra (Local):
+                </div>
+
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() =>
+                    void handleSimulatedGoogleAccountPick(
+                      'giaovien@lichday.vn',
+                      'Cô Nguyễn Thu Hà'
+                    )
+                  }
+                  className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#37393F] hover:border-[#1A73E8] hover:bg-blue-50/30 dark:hover:bg-[#24262B] transition-all text-left"
+                >
+                  <div>
+                    <div className="text-sm font-bold text-gray-900 dark:text-white">
+                      Cô Nguyễn Thu Hà (Giáo viên)
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      giaovien@lichday.vn · Kiểm tra liên kết tài khoản cùng email
+                    </div>
+                  </div>
+                  <CheckCircle2 size={18} className="text-[#1A73E8] shrink-0" />
+                </button>
+
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() =>
+                    void handleSimulatedGoogleAccountPick(
+                      'admin@lichday.vn',
+                      'Quản trị viên Hệ thống'
+                    )
+                  }
+                  className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#37393F] hover:border-[#1A73E8] hover:bg-blue-50/30 dark:hover:bg-[#24262B] transition-all text-left"
+                >
+                  <div>
+                    <div className="text-sm font-bold text-gray-900 dark:text-white">
+                      Quản trị viên (ADMIN_EMAIL)
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      admin@lichday.vn · Tự động nhận quyền Admin phía server
+                    </div>
+                  </div>
+                  <CheckCircle2 size={18} className="text-[#1A73E8] shrink-0" />
+                </button>
               </div>
-
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() =>
-                  void handleSimulatedGoogleAccountPick(
-                    'giaovien@lichday.vn',
-                    'Cô Nguyễn Thu Hà'
-                  )
-                }
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#37393F] hover:border-[#1A73E8] hover:bg-blue-50/30 dark:hover:bg-[#24262B] transition-all text-left"
-              >
-                <div>
-                  <div className="text-sm font-bold text-gray-900 dark:text-white">
-                    Cô Nguyễn Thu Hà (Giáo viên)
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    giaovien@lichday.vn · Kiểm tra liên kết tài khoản cùng email
-                  </div>
-                </div>
-                <CheckCircle2 size={18} className="text-[#1A73E8] shrink-0" />
-              </button>
-
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() =>
-                  void handleSimulatedGoogleAccountPick(
-                    'admin@lichday.vn',
-                    'Quản trị viên Hệ thống'
-                  )
-                }
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#37393F] hover:border-[#1A73E8] hover:bg-blue-50/30 dark:hover:bg-[#24262B] transition-all text-left"
-              >
-                <div>
-                  <div className="text-sm font-bold text-gray-900 dark:text-white">
-                    Quản trị viên (ADMIN_EMAIL)
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    admin@lichday.vn · Tự động nhận quyền Admin phía server
-                  </div>
-                </div>
-                <CheckCircle2 size={18} className="text-[#1A73E8] shrink-0" />
-              </button>
-            </div>
+            )}
 
             <form
               onSubmit={(e) => {
@@ -244,10 +246,10 @@ export function AuthCallbackPage() {
                   customName.trim() || customEmail.split('@')[0]
                 )
               }}
-              className="pt-3 border-t border-gray-100 dark:border-[#2D2F34] space-y-3"
+              className="pt-2 space-y-3"
             >
               <div className="text-xs font-semibold text-gray-600 dark:text-gray-300">
-                Hoặc nhập bất kỳ địa chỉ Gmail nào:
+                Nhập địa chỉ Gmail của bạn để đăng ký / đăng nhập ngay (Không cần chờ Admin duyệt):
               </div>
               <input
                 type="text"

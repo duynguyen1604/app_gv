@@ -25,6 +25,9 @@ export interface Env {
   DEFAULT_TEACHER_EMAIL?: string
   DEFAULT_TEACHER_PASSWORD?: string
   DEFAULT_TEACHER_NAME?: string
+  GOOGLE_CLIENT_ID?: string
+  GOOGLE_CLIENT_SECRET?: string
+  GOOGLE_AUTH_REDIRECT_URI?: string
   GEMINI_API_KEY?: string
   RESEND_API_KEY?: string
   RESEND_FROM_EMAIL?: string
@@ -637,8 +640,232 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         google_login_enabled: store.appSettings.google_login_enabled,
         password_login_enabled: store.appSettings.password_login_enabled,
         supabase_configured: false,
-        google_oauth_configured: false,
+        google_oauth_configured: Boolean(env.GOOGLE_CLIENT_ID),
         turnstile_site_key: null,
+      })
+    }
+
+    // 2b. GOOGLE OAUTH & AUTO-APPROVED GOOGLE REGISTRATION (/api/auth/google/* & /api/auth/sync-supabase)
+    if (method === 'GET' && path === '/api/auth/google/url') {
+      const returnTo = url.searchParams.get('returnTo') || '/'
+      const clientId = (env.GOOGLE_CLIENT_ID || '').trim()
+      const redirectUri =
+        (env.GOOGLE_AUTH_REDIRECT_URI || '').trim() ||
+        `${url.origin}/api/auth/google/callback`
+
+      if (!clientId) {
+        const fallbackRedirectUrl = `${url.origin}/auth/callback?mode=google_redirect_select&returnTo=${encodeURIComponent(
+          returnTo
+        )}`
+        return jsonResponse({
+          oauthConfigured: false,
+          redirectUrl: fallbackRedirectUrl,
+        })
+      }
+
+      const googleUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
+      googleUrl.searchParams.set('client_id', clientId)
+      googleUrl.searchParams.set('redirect_uri', redirectUri)
+      googleUrl.searchParams.set('response_type', 'code')
+      googleUrl.searchParams.set('scope', 'openid email profile')
+      googleUrl.searchParams.set('prompt', 'select_account')
+      googleUrl.searchParams.set('state', btoa(JSON.stringify({ returnTo })))
+
+      return jsonResponse({
+        oauthConfigured: true,
+        redirectUrl: googleUrl.toString(),
+      })
+    }
+
+    if (method === 'GET' && path === '/api/auth/google/callback') {
+      const code = url.searchParams.get('code') || ''
+      const rawState = url.searchParams.get('state') || ''
+      const clientId = (env.GOOGLE_CLIENT_ID || '').trim()
+      const clientSecret = (env.GOOGLE_CLIENT_SECRET || '').trim()
+      const redirectUri =
+        (env.GOOGLE_AUTH_REDIRECT_URI || '').trim() ||
+        `${url.origin}/api/auth/google/callback`
+
+      let returnTo = '/'
+      if (rawState) {
+        try {
+          const parsed = JSON.parse(atob(rawState)) as { returnTo?: string }
+          if (parsed.returnTo) returnTo = parsed.returnTo
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!code || !clientId || !clientSecret) {
+        return Response.redirect(
+          `${url.origin}/auth/login?error=${encodeURIComponent(
+            'Không thể hoàn tất đăng nhập với Google.'
+          )}`,
+          302
+        )
+      }
+
+      try {
+        const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            code,
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: redirectUri,
+            grant_type: 'authorization_code',
+          }),
+        })
+        if (!tokenResp.ok) {
+          throw new Error('Không thể đổi mã xác thực Google.')
+        }
+        const tokenData = (await tokenResp.json()) as { access_token: string }
+        const userResp = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        })
+        if (!userResp.ok) {
+          throw new Error('Không thể lấy thông tin tài khoản Google.')
+        }
+        const googleUser = (await userResp.json()) as {
+          email?: string
+          name?: string
+          picture?: string
+        }
+
+        const email = normalizeEmail(googleUser.email || '')
+        if (!email) throw new Error('Không lấy được địa chỉ email từ Google.')
+
+        const store = await loadAuthStore(env)
+        const nowIso = new Date().toISOString()
+        const isAdminEmail = email === getAdminEmail(env)
+        let user = store.users.find((u) => normalizeEmail(u.email) === email)
+        let linkedExisting = false
+
+        if (user) {
+          linkedExisting = user.auth_provider === 'email'
+          user.auth_provider = user.auth_provider === 'email' ? 'both' : 'google'
+          user.email_verified = true
+          if (user.status !== 'locked') {
+            user.status = 'active' // Đăng nhập bằng Google tự động duyệt active
+          }
+          if (googleUser.picture && !user.avatar_url) {
+            user.avatar_url = googleUser.picture
+          }
+          user.last_login_at = nowIso
+        } else {
+          user = {
+            id: generateId('usr'),
+            email,
+            full_name: googleUser.name || email.split('@')[0],
+            phone: null,
+            school: null,
+            avatar_url: googleUser.picture || null,
+            role: isAdminEmail ? 'admin' : 'teacher',
+            status: 'active', // Đăng ký bằng Google tự động kích hoạt ngay, KHÔNG cần Admin duyệt
+            email_verified: true,
+            auth_provider: 'google',
+            created_at: nowIso,
+            approved_at: nowIso,
+            approved_by: 'GOOGLE_OAUTH_AUTO',
+            last_login_at: nowIso,
+            locked_reason: null,
+            token_version: 1,
+          }
+          store.users.push(user)
+        }
+
+        const { sessionToken, expiresAt } = await createSession(
+          store,
+          user.id,
+          true,
+          req.headers.get('user-agent') || undefined
+        )
+        await saveAuthStore(env, store)
+
+        return Response.redirect(
+          `${url.origin}/auth/callback?token=${encodeURIComponent(
+            sessionToken
+          )}&expiresAt=${expiresAt}&linked=${
+            linkedExisting ? '1' : '0'
+          }&returnTo=${encodeURIComponent(returnTo)}`,
+          302
+        )
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Lỗi đăng nhập Google'
+        return Response.redirect(
+          `${url.origin}/auth/login?error=${encodeURIComponent(msg)}`,
+          302
+        )
+      }
+    }
+
+    if (
+      method === 'POST' &&
+      (path === '/api/auth/google/redirect-complete' || path === '/api/auth/sync-supabase')
+    ) {
+      const body = await readJsonBody(req)
+      const meta = body.userMetadata || body
+      const email = normalizeEmail(meta.email || '')
+      const fullName = String(meta.fullName || meta.full_name || email.split('@')[0] || '').trim()
+
+      if (!email) {
+        return jsonResponse(
+          { success: false, error: 'Vui lòng nhập địa chỉ email Google.' },
+          400
+        )
+      }
+
+      const store = await loadAuthStore(env)
+      const nowIso = new Date().toISOString()
+      const isAdminEmail = email === getAdminEmail(env)
+      let user = store.users.find((u) => normalizeEmail(u.email) === email)
+      let linkedExisting = false
+
+      if (user) {
+        linkedExisting = user.auth_provider === 'email'
+        user.auth_provider = user.auth_provider === 'email' ? 'both' : 'google'
+        user.email_verified = true
+        if (user.status !== 'locked') {
+          user.status = 'active' // Đăng nhập bằng Google tự động duyệt active
+        }
+        user.last_login_at = nowIso
+      } else {
+        user = {
+          id: generateId('usr'),
+          email,
+          full_name: fullName || email.split('@')[0],
+          phone: null,
+          school: null,
+          avatar_url: null,
+          role: isAdminEmail ? 'admin' : 'teacher',
+          status: 'active', // Đăng ký bằng Google tự động kích hoạt ngay, KHÔNG cần Admin duyệt
+          email_verified: true,
+          auth_provider: 'google',
+          created_at: nowIso,
+          approved_at: nowIso,
+          approved_by: 'GOOGLE_OAUTH_AUTO',
+          last_login_at: nowIso,
+          locked_reason: null,
+          token_version: 1,
+        }
+        store.users.push(user)
+      }
+
+      const { sessionToken, expiresAt } = await createSession(
+        store,
+        user.id,
+        true,
+        req.headers.get('user-agent') || undefined
+      )
+      await saveAuthStore(env, store)
+
+      return jsonResponse({
+        success: true,
+        profile: toPublicProfile(user),
+        sessionToken,
+        expiresAt,
+        linkedExisting,
       })
     }
 

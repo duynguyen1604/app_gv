@@ -175,4 +175,18 @@ Truy cập địa chỉ `https://app-lich-day-gv.pages.dev` của bạn:
   - Email: `admin@lichday.vn`
   - Mật khẩu: `Admin123456`
 
+#### Bước 6 (Tùy chọn): Bật Đăng nhập / Đăng ký thật với Google OAuth (Tự động vào thẳng, không cần Admin duyệt)
+Hệ thống đã được lập trình để **mọi người dùng bấm "Tiếp tục với Google" đều được kích hoạt ngay (`status: 'active'`) mà không cần chờ Admin duyệt**:
+- **Cách 1 (Dùng ngay không cần cấu hình Google Cloud)**: Khi bấm *"Tiếp tục với Google"*, người dùng chỉ cần gõ tên và Gmail vào màn hình xác nhận là tài khoản được tạo và kích hoạt vào thẳng ứng dụng ngay lập tức.
+- **Cách 2 (Mở bảng chọn tài khoản chính thức của Google `accounts.google.com`)**:
+  1. Vào [Google Cloud Console - Credentials](https://console.cloud.google.com/apis/credentials) $\rightarrow$ **Create Credentials** $\rightarrow$ **OAuth client ID** (chọn loại **Web application**).
+  2. Tại mục **Authorized redirect URIs**, thêm đường dẫn:
+     `https://<ten-web-cua-ban>.pages.dev/api/auth/google/callback`
+  3. Sao chép **Client ID** và **Client Secret**.
+  4. Vào dự án trên **Cloudflare Pages** $\rightarrow$ tab **Settings** $\rightarrow$ mục **Variables and secrets** $\rightarrow$ bấm **`+ Add`** để thêm 2 biến:
+     - `GOOGLE_CLIENT_ID`: *(Dán Client ID của bạn)*
+     - `GOOGLE_CLIENT_SECRET`: *(Dán Client Secret của bạn)*
+  5. Qua tab **Deployments** bấm **Retry deployment** là xong!
+
+
 
