@@ -293,7 +293,7 @@ function normalizeEmail(email: string): string {
 }
 
 function getAdminEmail(env: Env): string {
-  return normalizeEmail(env.ADMIN_EMAIL || env.DEFAULT_ADMIN_EMAIL || 'admin@lichday.vn')
+  return normalizeEmail(env.ADMIN_EMAIL || env.DEFAULT_ADMIN_EMAIL || '')
 }
 
 function toPublicProfile(user: StoredUser): UserProfile {
@@ -336,12 +336,12 @@ function validatePasswordStrength(password: string): string | null {
 async function loadAuthStore(env: Env): Promise<AuthStoreData> {
   const nowIso = new Date().toISOString()
   const adminEmail = getAdminEmail(env)
-  const adminPassword = env.DEFAULT_ADMIN_PASSWORD || 'Admin123456'
+  const adminPassword = String(env.DEFAULT_ADMIN_PASSWORD || '').trim()
   const adminName = env.DEFAULT_ADMIN_NAME || 'Quản trị viên Hệ thống'
 
-  const teacherEmail = normalizeEmail(env.DEFAULT_TEACHER_EMAIL || 'giaovien@lichday.vn')
-  const teacherPassword = env.DEFAULT_TEACHER_PASSWORD || 'Giaovien123'
-  const teacherName = env.DEFAULT_TEACHER_NAME || 'Cô Giáo Ngữ Văn'
+  const teacherEmail = normalizeEmail(env.DEFAULT_TEACHER_EMAIL || '')
+  const teacherPassword = String(env.DEFAULT_TEACHER_PASSWORD || '').trim()
+  const teacherName = env.DEFAULT_TEACHER_NAME || 'Giáo viên'
 
   let store = await kvGet<AuthStoreData>(env.DB, AUTH_STORE_KEY)
   let dirty = false
@@ -380,65 +380,71 @@ async function loadAuthStore(env: Env): Promise<AuthStoreData> {
     }
   }
 
-  // 1. Đảm bảo tài khoản Admin mặc định luôn hoạt động
-  let adminUser = store.users.find((u) => normalizeEmail(u.email) === adminEmail)
-  if (!adminUser) {
-    adminUser = {
-      id: '00000000-0000-0000-0000-000000000001',
-      email: adminEmail,
-      full_name: adminName,
-      phone: '0901234567',
-      school: 'Ban Quản trị Hệ thống',
-      role: 'admin',
-      status: 'active',
-      email_verified: true,
-      auth_provider: 'email',
-      created_at: nowIso,
-      approved_at: nowIso,
-      approved_by: 'SYSTEM',
-      last_login_at: null,
-      locked_reason: null,
-      password_hash: await hashPassword(adminPassword),
-      token_version: 1,
+  // 1. Đảm bảo tài khoản Admin (chỉ khởi tạo tự động khi có đủ ADMIN_EMAIL và DEFAULT_ADMIN_PASSWORD trong env)
+  let adminUser = adminEmail
+    ? store.users.find((u) => normalizeEmail(u.email) === adminEmail)
+    : undefined
+  if (adminEmail && adminPassword) {
+    if (!adminUser) {
+      adminUser = {
+        id: '00000000-0000-0000-0000-000000000001',
+        email: adminEmail,
+        full_name: adminName,
+        phone: null,
+        school: 'Ban Quản trị Hệ thống',
+        role: 'admin',
+        status: 'active',
+        email_verified: true,
+        auth_provider: 'email',
+        created_at: nowIso,
+        approved_at: nowIso,
+        approved_by: 'SYSTEM',
+        last_login_at: null,
+        locked_reason: null,
+        password_hash: await hashPassword(adminPassword),
+        token_version: 1,
+      }
+      store.users.unshift(adminUser)
+      dirty = true
+    } else if (!adminUser.password_hash || !adminUser.password_hash.startsWith('edge_sha256$')) {
+      adminUser.password_hash = await hashPassword(adminPassword)
+      adminUser.status = 'active'
+      adminUser.email_verified = true
+      adminUser.role = 'admin'
+      dirty = true
     }
-    store.users.unshift(adminUser)
-    dirty = true
-  } else if (!adminUser.password_hash || !adminUser.password_hash.startsWith('edge_sha256$')) {
-    adminUser.password_hash = await hashPassword(adminPassword)
-    adminUser.status = 'active'
-    adminUser.email_verified = true
-    adminUser.role = 'admin'
-    dirty = true
   }
 
-  // 2. Đảm bảo tài khoản Giáo viên mặc định luôn hoạt động
-  let teacherUser = store.users.find((u) => normalizeEmail(u.email) === teacherEmail)
-  if (!teacherUser) {
-    teacherUser = {
-      id: '00000000-0000-0000-0000-000000000002',
-      email: teacherEmail,
-      full_name: teacherName,
-      phone: '0912345678',
-      school: 'Trường THCS & THPT',
-      role: 'teacher',
-      status: 'active',
-      email_verified: true,
-      auth_provider: 'email',
-      created_at: nowIso,
-      approved_at: nowIso,
-      approved_by: adminUser.id,
-      last_login_at: null,
-      locked_reason: null,
-      password_hash: await hashPassword(teacherPassword),
-      token_version: 1,
+  // 2. Tài khoản Giáo viên mẫu (chỉ khởi tạo nếu có đủ DEFAULT_TEACHER_EMAIL và DEFAULT_TEACHER_PASSWORD trong env)
+  if (teacherEmail && teacherPassword) {
+    let teacherUser = store.users.find((u) => normalizeEmail(u.email) === teacherEmail)
+    if (!teacherUser) {
+      teacherUser = {
+        id: '00000000-0000-0000-0000-000000000002',
+        email: teacherEmail,
+        full_name: teacherName,
+        phone: null,
+        school: 'Trường THCS & THPT',
+        role: 'teacher',
+        status: 'active',
+        email_verified: true,
+        auth_provider: 'email',
+        created_at: nowIso,
+        approved_at: nowIso,
+        approved_by: adminUser?.id || 'SYSTEM',
+        last_login_at: null,
+        locked_reason: null,
+        password_hash: await hashPassword(teacherPassword),
+        token_version: 1,
+      }
+      store.users.push(teacherUser)
+      dirty = true
+    } else if (!teacherUser.password_hash || !teacherUser.password_hash.startsWith('edge_sha256$')) {
+      teacherUser.password_hash = await hashPassword(teacherPassword)
+      teacherUser.status = 'active'
+      teacherUser.email_verified = true
+      dirty = true
     }
-    store.users.push(teacherUser)
-    dirty = true
-  } else if (!teacherUser.password_hash || !teacherUser.password_hash.startsWith('edge_sha256$')) {
-    teacherUser.password_hash = await hashPassword(teacherPassword)
-    teacherUser.status = 'active'
-    teacherUser.email_verified = true
-    dirty = true
   }
 
   if (dirty) {
@@ -665,7 +671,32 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;')
 }
 
-function isWithinDateRange(dateStr: string, validFrom?: string, validTo?: string): boolean {
+const FALLBACK_SCHOOL_PERIODS: Array<{ code: string; start_time: string; end_time: string }> = [
+  { code: 'S1', start_time: '07:00', end_time: '07:45' },
+  { code: 'S2', start_time: '07:55', end_time: '08:40' },
+  { code: 'S3', start_time: '09:05', end_time: '09:50' },
+  { code: 'S4', start_time: '10:00', end_time: '10:45' },
+  { code: 'S5', start_time: '10:55', end_time: '11:40' },
+  { code: 'C1', start_time: '14:00', end_time: '14:45' },
+  { code: 'C2', start_time: '14:55', end_time: '15:40' },
+  { code: 'C3', start_time: '16:00', end_time: '16:45' },
+  { code: 'C4', start_time: '16:55', end_time: '17:40' },
+  { code: 'C5', start_time: '17:50', end_time: '18:35' },
+]
+
+function getMondayOfDateStr(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map((n) => Number(n))
+  const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1))
+  const jsDay = dt.getUTCDay() // 0=Sun, 1=Mon..6=Sat
+  const diff = jsDay === 0 ? -6 : 1 - jsDay
+  dt.setUTCDate(dt.getUTCDate() + diff)
+  const yy = dt.getUTCFullYear()
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(dt.getUTCDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
+}
+
+function isWithinDateRange(dateStr: string, validFrom?: string | null, validTo?: string | null): boolean {
   if (validFrom && dateStr < validFrom) return false
   if (validTo && dateStr > validTo) return false
   return true
@@ -676,39 +707,63 @@ function computeDailyEmailItemsForState(
   dateStr: string,
   weekday: number,
 ): DailyEmailItem[] {
-  const settings = state.settings || {}
+  const settings = (state.settings || {}) as Record<string, any>
   const notifyContent = settings.notify_content || 'both'
   const showDuty = settings.show_duty_in_email !== false
+  const weekMonday = getMondayOfDateStr(dateStr)
 
   const holidays: any[] = Array.isArray(state.holidays) ? state.holidays : []
-  if (holidays.some((h) => h.date === dateStr)) {
-    return []
-  }
+  const isHoliday = holidays.some((h) => h.date === dateStr)
 
   const items: DailyEmailItem[] = []
 
   // 1. Lịch trường học (schoolSchedule)
-  if (notifyContent === 'both' || notifyContent === 'school') {
-    const periods: any[] = Array.isArray(state.schoolPeriods) ? state.schoolPeriods : []
-    const periodMap = new Map<string, any>(periods.map((p) => [p.id, p]))
+  if (!isHoliday && (notifyContent === 'both' || notifyContent === 'school')) {
+    const rawPeriods: any[] =
+      Array.isArray(state.schoolPeriods) && state.schoolPeriods.length > 0
+        ? state.schoolPeriods
+        : FALLBACK_SCHOOL_PERIODS
+    const periodById = new Map<string, any>(
+      rawPeriods.filter((p) => p.id).map((p) => [p.id, p])
+    )
+    const periodByCode = new Map<string, any>(
+      rawPeriods.filter((p) => p.code).map((p) => [String(p.code).toUpperCase(), p])
+    )
     const schoolSlots: any[] = Array.isArray(state.schoolSchedule) ? state.schoolSchedule : []
 
     for (const slot of schoolSlots) {
       if (Number(slot.weekday) !== weekday) continue
-      if (!isWithinDateRange(dateStr, slot.valid_from, slot.valid_to)) continue
-      if (slot.is_duty && !showDuty) continue
+      const matchesWeek = slot.week_start
+        ? slot.week_start === weekMonday
+        : isWithinDateRange(dateStr, slot.valid_from, slot.valid_to)
+      if (!matchesWeek) continue
 
-      const p = periodMap.get(slot.period_id)
+      const isDuty = slot.cell_type === 'duty' || Boolean(slot.is_duty)
+      if (isDuty && !showDuty) continue
+
+      const code = String(slot.period_code || slot.period || '').toUpperCase()
+      const p =
+        (code ? periodByCode.get(code) : undefined) ||
+        (slot.period_id ? periodById.get(slot.period_id) : undefined)
+
       const startTime = slot.start_time || p?.start_time || '07:00'
       const endTime = slot.end_time || p?.end_time || ''
-      const timeLabel = endTime ? `${startTime} - ${endTime}` : startTime
+      const timeLabel = endTime ? `${startTime} – ${endTime}` : startTime
+
+      const mainText =
+        [slot.class_name, slot.subject].filter(Boolean).join(' · ') ||
+        slot.subject_name ||
+        slot.title ||
+        slot.note ||
+        p?.name ||
+        (isDuty ? 'Trực ban / Họp' : 'Tiết học ở trường')
 
       items.push({
-        type: slot.is_duty ? 'Trực ban / Họp' : 'Lịch trường',
-        title: slot.subject_name || slot.title || p?.name || 'Tiết học ở trường',
+        type: isDuty ? 'Trực' : 'Trường',
+        title: code ? `${code} · ${mainText}` : mainText,
         time: timeLabel,
-        location: slot.room || slot.class_name || '',
-        period_code: p?.code || slot.period_code,
+        location: slot.room || '',
+        period_code: code || undefined,
         session_group: slot.session_group,
         spans_to_group: slot.spans_to_group,
       })
@@ -722,37 +777,41 @@ function computeDailyEmailItemsForState(
     const exceptions: any[] = Array.isArray(state.sessionExceptions) ? state.sessionExceptions : []
     const rules: any[] = Array.isArray(state.scheduleRules) ? state.scheduleRules : []
 
-    for (const rule of rules) {
-      if (Number(rule.weekday) !== weekday) continue
-      if (!isWithinDateRange(dateStr, rule.valid_from, rule.valid_to)) continue
+    if (!isHoliday) {
+      for (const rule of rules) {
+        if (Number(rule.weekday) !== weekday) continue
+        if (!isWithinDateRange(dateStr, rule.valid_from, rule.valid_to)) continue
 
-      const ex = exceptions.find(
-        (e) => e.rule_id === rule.id && e.original_date === dateStr,
-      )
-      if (ex && (ex.type === 'cancelled' || ex.type === 'moved')) continue
+        const ex = exceptions.find(
+          (e) => e.rule_id === rule.id && e.original_date === dateStr,
+        )
+        const exAction = ex?.action || ex?.type
+        if (ex && (exAction === 'cancelled' || exAction === 'moved')) continue
 
-      const cls = classMap.get(rule.class_id)
-      const startTime = rule.start_time || '18:00'
-      const endTime = rule.end_time || ''
-      items.push({
-        type: 'Dạy thêm',
-        title: cls?.name || 'Lớp dạy thêm',
-        time: endTime ? `${startTime} - ${endTime}` : startTime,
-        location: cls?.location || rule.location || '',
-      })
+        const cls = classMap.get(rule.class_id)
+        const startTime = rule.start_time || '18:00'
+        const endTime = rule.end_time || ''
+        items.push({
+          type: 'Dạy thêm',
+          title: cls?.name || 'Lớp dạy thêm',
+          time: endTime ? `${startTime} – ${endTime}` : startTime,
+          location: cls?.location || rule.location || '',
+        })
+      }
     }
 
     // Các buổi được dời đến ngày hôm nay
     for (const ex of exceptions) {
-      if (ex.type === 'moved' && ex.new_date === dateStr) {
+      const exAction = ex.action || ex.type
+      if (exAction === 'moved' && ex.new_date === dateStr) {
         const rule = rules.find((r) => r.id === ex.rule_id)
         const cls = classMap.get(ex.class_id || rule?.class_id)
-        const startTime = ex.new_start_time || rule?.start_time || '18:00'
-        const endTime = ex.new_end_time || rule?.end_time || ''
+        const startTime = ex.new_start || ex.new_start_time || rule?.start_time || '18:00'
+        const endTime = ex.new_end || ex.new_end_time || rule?.end_time || ''
         items.push({
           type: 'Dạy bù / Dời lịch',
           title: cls?.name || 'Lớp dạy thêm',
-          time: endTime ? `${startTime} - ${endTime}` : startTime,
+          time: endTime ? `${startTime} – ${endTime}` : startTime,
           location: cls?.location || '',
         })
       }
@@ -766,9 +825,9 @@ function computeDailyEmailItemsForState(
       const startTime = extra.start_time || '18:00'
       const endTime = extra.end_time || ''
       items.push({
-        type: 'Lịch phát sinh',
+        type: 'Phát sinh',
         title: cls?.name ? `${cls.name}${extra.note ? ` (${extra.note})` : ''}` : extra.note || 'Buổi phát sinh',
-        time: endTime ? `${startTime} - ${endTime}` : startTime,
+        time: endTime ? `${startTime} – ${endTime}` : startTime,
         location: cls?.location || '',
       })
     }
@@ -1498,8 +1557,8 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         security: {
           hasPassword: Boolean(auth.user.password_hash),
           tokenVersion: auth.user.token_version || 1,
-          isFixedServerAdmin: normalizeEmail(auth.user.email) === adminEmail,
-          adminEmailConfigured: adminEmail,
+          isFixedServerAdmin: Boolean(adminEmail) && normalizeEmail(auth.user.email) === adminEmail,
+          adminEmailConfigured: auth.user.role === 'admin' ? adminEmail : '',
         },
       })
     }

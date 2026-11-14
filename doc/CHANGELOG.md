@@ -2,6 +2,28 @@
 
 Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa bỏ) trong dự án Quản lý Lịch dạy Giáo viên được ghi lại chi tiết tại tệp này theo định dạng chuẩn [Keep a Changelog](https://keepachangelog.com/).
 
+## [2026-11-14] - Xóa Bỏ Toàn Bộ Tài Khoản & Mật Khẩu Admin Mặc Định Cố Định Trong Mã Nguồn
+
+### 🔒 Bảo mật (Security)
+- **Không còn hardcode email/mật khẩu Admin và tài khoản mẫu trong [`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts)**:
+  * Xóa bỏ hoàn toàn các chuỗi fallback cố định (`admin@lichday.vn`, `Admin123456`, `giaovien@lichday.vn`, `Giaovien123`).
+  * Tài khoản Admin/mẫu chỉ được khởi tạo tự động nếu người vận hành cấu hình đầy đủ qua biến môi trường (`ADMIN_EMAIL` + `DEFAULT_ADMIN_PASSWORD`, hoặc `DEFAULT_TEACHER_EMAIL` + `DEFAULT_TEACHER_PASSWORD`) trên Cloudflare Pages.
+  * API `GET /api/profile/me` chỉ trả về `adminEmailConfigured` khi người gọi đang là `admin`, tránh lộ email quản trị cho tài khoản giáo viên.
+
+---
+
+## [2026-11-14] - Fix Rò Rỉ `settings` Giữa Các Tài Khoản & Fix Lỗi Email Không Hiển Thị Lịch Dạy Thực Tế
+
+### 🐛 Đã sửa (Fixed)
+- **Cô lập `settings` theo từng tài khoản khi đăng xuất / đổi tài khoản ([`frontend/src/store/useAppStore.ts`](file:///d:/app_gv/frontend/src/store/useAppStore.ts))**:
+  * Trước đây `setUserId(id)` reset dữ liệu lớp/học sinh/lịch nhưng quên reset `settings`, khiến `notify_email` (và các cài đặt khác) của tài khoản A bị giữ lại khi đăng nhập tài khoản B.
+  * Đã bổ sung `settings: { ...DEFAULT_SETTINGS, user_id: nextId }` vào `setUserId` để mỗi tài khoản dùng cấu hình riêng biệt hoàn toàn.
+- **Sửa bộ tính lịch gửi email trên Edge khớp 100% với lịch dạy thực tế ([`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts), [`frontend/src/pages/SettingsPage.tsx`](file:///d:/app_gv/frontend/src/pages/SettingsPage.tsx))**:
+  * Sửa `computeDailyEmailItemsForState` để đọc đúng các trường dữ liệu thực tế: `schoolSchedule` (`week_start`, `period_code`, `cell_type === 'duty'`, `class_name`, `subject`, `room`, `note`), `sessionExceptions` (`action === 'cancelled' | 'moved'`, `new_start`, `new_end`), `extraSessions` và `FALLBACK_SCHOOL_PERIODS` (`S1–S5`, `C1–C5`).
+  * Lọc bỏ các buổi đã dời đi (`!s.is_moved`) khỏi `todayComputedSessions` khi xem trước & gửi email thử trong [`frontend/src/pages/SettingsPage.tsx`](file:///d:/app_gv/frontend/src/pages/SettingsPage.tsx).
+
+---
+
 ## [2026-11-14] - Sửa Lỗi Điền Sẵn Email & Tối Ưu Giao Diện Mục "Google Calendar & AI" Trong Cài Đặt Hệ Thống
 
 ### 🔧 Đã sửa & Cải thiện (Fixed & Improved)

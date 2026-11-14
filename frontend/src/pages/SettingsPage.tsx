@@ -283,7 +283,7 @@ export function SettingsPage() {
       classes,
       holidays,
       settings,
-    }).filter((s) => !s.is_cancelled)
+    }).filter((s) => !s.is_cancelled && !s.is_moved)
 
     return all.filter((s) => {
       if (s.type === 'duty' && settings.show_duty_in_email === false) return false

@@ -360,6 +360,7 @@ export const useAppStore = create<AppState>()(
           calendarEventMap: [],
           calendarSyncLogs: [],
           notificationLogs: [],
+          settings: { ...DEFAULT_SETTINGS, user_id: nextId },
         })
       },
 
