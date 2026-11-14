@@ -409,12 +409,6 @@ export function OnboardingTour() {
 
   const [stepIndex, setStepIndex] = useState(0)
   const [spotlightRect, setSpotlightRect] = useState<SpotlightRect | null>(null)
-  const [viewport, setViewport] = useState(() => ({
-    width: typeof window !== 'undefined' ? window.innerWidth : 1024,
-    height: typeof window !== 'undefined' ? window.innerHeight : 768,
-  }))
-  const cardRef = useRef<HTMLDivElement>(null)
-  const [cardHeight, setCardHeight] = useState(260)
 
   // Reset to step 1 whenever the tour opens or scope changes
   useEffect(() => {
@@ -463,7 +457,6 @@ export function OnboardingTour() {
     if (!onboardingOpen) return
     const vw = window.innerWidth
     const vh = window.innerHeight
-    setViewport({ width: vw, height: vh })
 
     const el = findVisibleTargetElement(currentStep.targetSelector)
     if (!el) {
@@ -486,13 +479,7 @@ export function OnboardingTour() {
     updateTargetMeasurement()
     const timer = window.setTimeout(() => {
       updateTargetMeasurement()
-      if (cardRef.current) {
-        setCardHeight(cardRef.current.offsetHeight || 260)
-      }
     }, 120)
-    if (cardRef.current) {
-      setCardHeight(cardRef.current.offsetHeight || 260)
-    }
     return () => window.clearTimeout(timer)
   }, [onboardingOpen, stepIndex, location.pathname, updateTargetMeasurement])
 
@@ -501,9 +488,6 @@ export function OnboardingTour() {
 
     const onResizeOrScroll = () => {
       updateTargetMeasurement()
-      if (cardRef.current) {
-        setCardHeight(cardRef.current.offsetHeight || 260)
-      }
     }
 
     window.addEventListener('resize', onResizeOrScroll, { passive: true })
@@ -678,53 +662,6 @@ export function OnboardingTour() {
 
   const StepIcon = currentStep.icon
 
-  // Compute non-overlapping tooltip card position for both mobile and desktop
-  const margin = 12
-  const maxCardWidth = Math.min(390, viewport.width - margin * 2)
-  let cardTop = Math.max(margin, Math.round((viewport.height - cardHeight) / 2))
-  let cardLeft = Math.max(margin, Math.round((viewport.width - maxCardWidth) / 2))
-
-  if (spotlightRect) {
-    const gap = 14
-    const targetBottom = spotlightRect.top + spotlightRect.height
-    const targetRight = spotlightRect.left + spotlightRect.width
-    const isDesktop = viewport.width >= 768
-
-    if (
-      isDesktop &&
-      spotlightRect.left < 280 &&
-      targetRight + gap + maxCardWidth <= viewport.width - margin
-    ) {
-      cardLeft = targetRight + gap
-      const idealTop = spotlightRect.top - 12
-      cardTop = Math.max(
-        margin,
-        Math.min(idealTop, viewport.height - cardHeight - margin)
-      )
-    } else {
-      const targetCenterX = spotlightRect.left + spotlightRect.width / 2
-      cardLeft = Math.max(
-        margin,
-        Math.min(
-          Math.round(targetCenterX - maxCardWidth / 2),
-          viewport.width - maxCardWidth - margin
-        )
-      )
-
-      const spaceBelow = viewport.height - targetBottom - margin
-      const spaceAbove = spotlightRect.top - margin
-
-      if (spaceBelow >= cardHeight + gap || spaceBelow >= spaceAbove) {
-        cardTop = Math.min(
-          targetBottom + gap,
-          Math.max(margin, viewport.height - cardHeight - margin)
-        )
-      } else {
-        cardTop = Math.max(margin, spotlightRect.top - cardHeight - gap)
-      }
-    }
-  }
-
   return (
     <div
       className="fixed inset-0 z-[120] no-print select-none"
@@ -777,17 +714,12 @@ export function OnboardingTour() {
         />
       )}
 
-      {/* Tooltip / Step Card */}
-      <div
-        ref={cardRef}
-        style={{
-          top: cardTop,
-          left: cardLeft,
-          width: maxCardWidth,
-        }}
-        onClick={(e) => e.stopPropagation()}
-        className="fixed z-[121] rounded-2xl bg-white dark:bg-[#1E1F22] border border-gray-200 dark:border-[#2D2F34] shadow-2xl p-4 sm:p-5 text-gray-900 dark:text-gray-100 motion-reduce:transition-none"
-      >
+      {/* Centered Popup Step Card */}
+      <div className="fixed inset-0 z-[121] flex items-center justify-center p-4 pointer-events-none">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="pointer-events-auto w-full max-w-[420px] rounded-2xl bg-white dark:bg-[#1E1F22] border border-gray-200 dark:border-[#2D2F34] shadow-2xl p-4 sm:p-5 text-gray-900 dark:text-gray-100 motion-reduce:transition-none"
+        >
         {/* Top Header: Progress badge + Skip + Close X */}
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-[#1A73E8]/15 text-[#1A73E8] dark:text-[#8AB4F8] text-xs font-bold">
@@ -883,6 +815,7 @@ export function OnboardingTour() {
               {!isLastStep && <ChevronRight size={14} />}
             </button>
           </div>
+        </div>
         </div>
       </div>
     </div>
