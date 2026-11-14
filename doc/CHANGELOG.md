@@ -2,6 +2,15 @@
 
 Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa bỏ) trong dự án Quản lý Lịch dạy Giáo viên được ghi lại chi tiết tại tệp này theo định dạng chuẩn [Keep a Changelog](https://keepachangelog.com/).
 
+## [2026-11-14] - Giới Hạn Lưu Nhật Ký Kiểm Toán Trong 30 Ngày Gần Nhất
+
+### 🔧 Đã sửa (Changed)
+- **Tự động dọn dẹp `auditLogs` quá 30 ngày ([`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts))**:
+  * Thêm hàm `pruneAuditLogsLast30Days(store)` chỉ giữ lại các bản ghi trong 30 ngày gần nhất (`AUDIT_LOG_RETENTION_MS = 30 ngày`, giới hạn tối đa 1000 bản ghi để bảo vệ dung lượng KV/D1).
+  * Tự động lọc khi nạp `loadAuthStore` và mỗi khi ghi thêm nhật ký mới ở `appendAuditLog`.
+
+---
+
 ## [2026-11-14] - Fix Ô Nhập "Số Lượt Dùng Tối Đa" & "Hạn Sử Dụng" Không Xóa Được Số Mặc Định
 
 ### 🐛 Đã sửa (Fixed)

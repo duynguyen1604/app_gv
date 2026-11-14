@@ -370,6 +370,7 @@ async function loadAuthStore(env: Env): Promise<AuthStoreData> {
     if (!Array.isArray(store.tokens)) { store.tokens = []; dirty = true }
     if (!Array.isArray(store.invites)) { store.invites = []; dirty = true }
     if (!Array.isArray(store.auditLogs)) { store.auditLogs = []; dirty = true }
+    if (pruneAuditLogsLast30Days(store)) { dirty = true }
   }
 
   // Xóa tài khoản mẫu chờ duyệt (choduyet@lichday.vn) và tài khoản admin mặc định cũ (admin@lichday.vn) nếu không cấu hình lại bằng env
@@ -502,6 +503,24 @@ async function saveAuthStore(env: Env, store: AuthStoreData): Promise<void> {
   await kvSet(env.DB, AUTH_STORE_KEY, store)
 }
 
+const AUDIT_LOG_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
+
+function pruneAuditLogsLast30Days(store: AuthStoreData): boolean {
+  if (!Array.isArray(store.auditLogs) || store.auditLogs.length === 0) return false
+  const cutoff = Date.now() - AUDIT_LOG_RETENTION_MS
+  const filtered = store.auditLogs
+    .filter((entry) => {
+      const ts = new Date(entry.created_at).getTime()
+      return Number.isFinite(ts) && ts >= cutoff
+    })
+    .slice(0, 1000)
+  if (filtered.length !== store.auditLogs.length) {
+    store.auditLogs = filtered
+    return true
+  }
+  return false
+}
+
 function appendAuditLog(
   store: AuthStoreData,
   params: {
@@ -528,9 +547,7 @@ function appendAuditLog(
     ip_masked: 'cloudflare.edge',
     created_at: new Date().toISOString(),
   })
-  if (store.auditLogs.length > 300) {
-    store.auditLogs = store.auditLogs.slice(0, 300)
-  }
+  pruneAuditLogsLast30Days(store)
 }
 
 async function createSession(
