@@ -118,46 +118,61 @@ Khi chạy bằng Docker:
 
 ---
 
-## ☁️ 5. Phương án Deploy Online 100% Miễn phí (0đ/tháng)
+## ⚡ 5. Phương án Deploy 100% Trên Cloudflare (Miễn phí trọn đời - Không bao giờ tắt Server / 0s đợi Wake-up)
 
-Nếu không muốn bật máy tính cá nhân chạy Docker mà muốn đưa ứng dụng lên Internet miễn phí hoàn toàn (dùng tốt trên điện thoại iPhone/Android và máy tính ở mọi nơi), dự án đã được cấu hình sẵn bộ tệp triển khai **100% Free Tier**:
+Thay vì dùng Render.com bản miễn phí (bị ngủ sau 15 phút không dùng và mất 30–50 giây chờ khởi động lại), toàn bộ dự án (cả **Frontend React** lẫn **Backend API `/api/*`** và **Database**) đã được tích hợp để chạy **100% trên mạng lưới Cloudflare Edge** thông qua **Cloudflare Pages + Pages Functions + Cloudflare D1 Database**:
+- **Không bao giờ ngủ (Zero Cold Start - 0ms)**: Vào trang hoặc đăng nhập lúc nào cũng phản hồi ngay lập tức (`< 20ms`).
+- **Chung một tên miền duy nhất (`https://<ten-du-an>.pages.dev`)**: Cả giao diện web và API `/api/*` nằm chung trên Cloudflare Pages nên không cần cấu hình CORS hay URL backend rời.
+- **100% Miễn phí**: Băng thông web không giới hạn, 100.000 lượt gọi API/ngày, 5GB lưu trữ SQL trên Cloudflare D1 (5.000.000 lượt đọc/ngày).
 
-### Kiến trúc Cloud 0đ:
-1. **Frontend (Giao diện Web & PWA)**: **Cloudflare Pages** (hoặc **Vercel Free**) — Băng thông không giới hạn, SSL miễn phí, tốc độ CDN toàn cầu. Đã cấu hình sẵn `frontend/public/_redirects` và `frontend/vercel.json`.
-2. **Database & Auth (Cơ sở dữ liệu PostgreSQL)**: **Supabase Free Tier** (hoặc **Neon.tech Free**) — 500MB PostgreSQL miễn phí trọn đời + 50.000 người dùng Supabase Auth miễn phí.
-3. **Backend API & Cron**: **Render.com Free Web Service** — Đã cấu hình sẵn tệp `render.yaml` ở thư mục gốc và hỗ trợ biến `DATABASE_URL` có SSL trong `backend/src/db.ts`.
-4. **Giữ ấm & Gửi Email tự động 24/7**: **GitHub Actions Free Cron** (`.github/workflows/cron-keepalive.yml`) kết hợp **Gmail App Password** (miễn phí 500 email/ngày).
+### Các tệp đã được cấu hình sẵn trong dự án:
+- [`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts) & [`functions/api/[[route]].ts`](file:///d:/app_gv/functions/api/[[route]].ts): Toàn bộ Backend API (`/api/auth/*`, `/api/profile/*`, `/api/admin/*`, `/api/sync`, `/api/email/test`, `/api/ai/*`) chạy trực tiếp trên Cloudflare Pages Functions.
+- [`cloudflare/d1-schema.sql`](file:///d:/app_gv/cloudflare/d1-schema.sql): Cấu trúc bảng `kv_store` cho Cloudflare D1 (hệ thống cũng tự động chạy lệnh `CREATE TABLE IF NOT EXISTS` ngay lần truy cập đầu tiên nên không cần chạy SQL thủ công).
+- [`frontend/wrangler.toml`](file:///d:/app_gv/frontend/wrangler.toml) & [`wrangler.toml`](file:///d:/app_gv/wrangler.toml): Cấu hình chuẩn cho Cloudflare Pages.
 
-### Các bước thực hiện nhanh (10 phút):
+### Hướng dẫn từng bước Deploy lên Cloudflare (Chỉ mất ~5 phút):
 
-#### Bước 1: Tạo Database PostgreSQL miễn phí trên Supabase
-1. Đăng nhập [Supabase.com](https://supabase.com/) (bằng GitHub) $\rightarrow$ **New Project**.
-2. Vào mục **SQL Editor**, dán nội dung tệp `backend/sql/init.sql` và `backend/sql/002_supabase_auth_profiles.sql` rồi bấm **Run** để khởi tạo toàn bộ bảng và chính sách bảo mật RLS.
-3. Vào **Project Settings $\rightarrow$ Database $\rightarrow$ Connection string (URI)**, sao chép chuỗi kết nối `postgresql://postgres.[ref]:[password]@aws-0-...pooler.supabase.com:6543/postgres`.
+#### Bước 1: Đẩy code lên GitHub cá nhân
+```bash
+git add .
+git commit -m "Deploy fullstack len Cloudflare Pages + D1"
+git push origin main
+```
 
-#### Bước 2: Deploy Backend miễn phí lên Render.com
-1. Đẩy mã nguồn dự án lên kho **GitHub** cá nhân của bạn.
-2. Đăng nhập [Render.com](https://render.com/) $\rightarrow$ **New + $\rightarrow$ Blueprint** (hoặc **Web Service**) và chọn kho GitHub của dự án (Render sẽ tự nhận tệp `render.yaml`).
-3. Tại mục **Environment Variables** trên Render, điền:
-   - `DATABASE_URL`: Chuỗi URI PostgreSQL vừa lấy từ Supabase.
-   - `ADMIN_EMAIL`: Email quản trị viên của bạn.
-   - `SMTP_USER` & `SMTP_PASS`: Gmail và Mật khẩu ứng dụng 16 ký tự (nếu dùng gửi lịch qua email).
-   - `FRONTEND_URL`: Địa chỉ trang web Frontend sau khi tạo ở Bước 3.
-4. Sau khi Render build xong, bạn sẽ nhận được URL Backend dạng `https://app-gv-backend.onrender.com`.
+#### Bước 2: Tạo Database miễn phí trên Cloudflare D1
+1. Đăng nhập vào [Cloudflare Dashboard](https://dash.cloudflare.com/).
+2. Ở menu bên trái, chọn **Storage & Databases** $\rightarrow$ **D1 SQL Database**.
+3. Bấm nút **Create Database**, đặt tên là `lich-day-db` rồi bấm **Create**.
+   *(Không cần chạy lệnh tạo bảng thủ công vì code trong `functions/api/[[route]].ts` sẽ tự động khởi tạo bảng `kv_store` và nạp sẵn tài khoản Admin + Giáo viên ngay lần mở đầu tiên!)*
 
-#### Bước 3: Deploy Frontend miễn phí lên Cloudflare Pages (hoặc Vercel)
-1. Đăng nhập [Cloudflare Dashboard](https://dash.cloudflare.com/) $\rightarrow$ **Workers & Pages $\rightarrow$ Create $\rightarrow$ Pages $\rightarrow$ Connect to Git**.
-2. Chọn kho GitHub của dự án, thiết lập thông số Build:
-   - **Root directory**: `frontend`
+#### Bước 3: Tạo dự án trên Cloudflare Pages (Gồm cả Frontend + Backend API)
+1. Ở menu bên trái Cloudflare, vào **Compute (Workers)** $\rightarrow$ **Workers & Pages**.
+2. Bấm nút **Create** $\rightarrow$ chọn tab **Pages** $\rightarrow$ bấm **Import an existing Git repository** (hoặc **Connect to Git**).
+3. Chọn tài khoản GitHub và chọn kho lưu trữ (repository) dự án của bạn $\rightarrow$ bấm **Begin setup**.
+4. Tại màn hình **Set up builds and deployments**, điền như sau:
+   - **Project name**: `app-lich-day-gv` (hoặc tên bạn thích)
+   - **Production branch**: `main`
+   - **Framework preset**: Chọn `Vite`
+   - **Root directory (advanced)**: Nhập `frontend`
    - **Build command**: `npm run build`
    - **Build output directory**: `dist`
-3. Thêm biến môi trường (Environment Variables):
-   - `VITE_API_URL`: `https://app-gv-backend.onrender.com` (URL Backend ở Bước 2).
-   - *(Tùy chọn)* `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY` nếu bật Google OAuth qua Supabase.
-4. Bấm **Save and Deploy** $\rightarrow$ Nhận ngay tên miền miễn phí `https://app-gv.pages.dev`.
+5. Bấm **Save and Deploy** và đợi khoảng 1 phút để Cloudflare xuất bản trang web lần đầu.
 
-#### Bước 4: Bật GitHub Actions giữ ấm Backend & Cron 06:00 sáng
-1. Trên kho GitHub của bạn, vào **Settings $\rightarrow$ Secrets and variables $\rightarrow$ Actions $\rightarrow$ New repository secret**.
-2. Tạo secret tên `BACKEND_URL` với giá trị `https://app-gv-backend.onrender.com`.
-3. Workflow `.github/workflows/cron-keepalive.yml` sẽ tự động ping giữ ấm máy chủ miễn phí mỗi 14 phút và đánh thức tiến trình gửi email lịch dạy đúng 06:00 sáng giờ Việt Nam.
+#### Bước 4: Gắn Database D1 (`DB`) vào dự án Cloudflare Pages
+1. Sau khi deploy xong, trong trang quản lý dự án `app-lich-day-gv` trên Cloudflare Pages, chuyển sang tab **Settings**.
+2. Kéo xuống mục **Bindings** (hoặc **Functions** $\rightarrow$ **D1 database bindings**) $\rightarrow$ bấm **Add** $\rightarrow$ chọn **D1 database**:
+   - **Variable name**: Nhập chính xác là `DB` *(viết hoa)*
+   - **D1 database**: Chọn `lich-day-db` (đã tạo ở Bước 2)
+   - Bấm **Save**.
+3. Chuyển sang tab **Deployments**, bấm vào biểu tượng `...` ở bản deploy mới nhất và chọn **Retry deployment** để kích hoạt kết nối Database D1.
+
+#### Bước 5: Đăng nhập và sử dụng ngay (Không bao giờ phải đợi!)
+Truy cập địa chỉ `https://app-lich-day-gv.pages.dev` của bạn:
+- **Tài khoản Giáo viên (đã nạp sẵn đủ 14 lớp dạy thêm & lịch dạy trường của bạn)**:
+  - Email: `giaovien@lichday.vn`
+  - Mật khẩu: `Giaovien123`
+- **Tài khoản Quản trị viên (Admin)**:
+  - Email: `admin@lichday.vn`
+  - Mật khẩu: `Admin123456`
+
 

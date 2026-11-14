@@ -1,0 +1,4 @@
+name = "app-lich-day-gv"
+pages_build_output_dir = "frontend/dist"
+compatibility_date = "2024-11-01"
+

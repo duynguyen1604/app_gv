@@ -13,7 +13,9 @@ const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim()
 const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
 
 export const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  ''
 ).replace(/\/+$/, '')
 
 export const isSupabaseCloudConfigured = Boolean(supabaseUrl && supabaseAnonKey)

@@ -27,7 +27,11 @@ import type {
   StudentStatusHistory,
 } from '../types'
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) || ''
+const API_BASE = (
+  (import.meta.env.VITE_API_URL as string | undefined) ||
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
+  ''
+).replace(/\/+$/, '')
 
 export interface ServerState {
   classes: Class[]

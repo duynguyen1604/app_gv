@@ -1,0 +1,12 @@
+name = "app-lich-day-gv"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-11-01"
+
+# ============================================================================
+# HƯỚNG DẪN GẮN DATABASE D1 TRÊN CLOUDFLARE PAGES DASHBOARD:
+# Vào Cloudflare Dashboard -> Workers & Pages -> chọn dự án `app-lich-day-gv`
+# -> tab Settings -> Bindings -> Add -> D1 database:
+#   - Variable name: DB
+#   - D1 database: chọn database bạn đã tạo (ví dụ: lich-day-db)
+# ============================================================================
+

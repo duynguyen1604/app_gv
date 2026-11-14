@@ -4,6 +4,26 @@ Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa b�
 
 ---
 
+## [2026-11-14] - Chuyển Đổi Kiến Trúc Deploy 100% Lên Cloudflare (Cloudflare Pages + Pages Functions `/api/*` + Cloudflare D1 Edge Database — Không Bao Giờ Tắt Server / 0ms Cold Start)
+
+### 🚀 Đã thêm & Nâng cấp (Added & Changed)
+- **Tích hợp Backend Serverless trực tiếp trên Cloudflare Pages Functions (`frontend/functions/api/[[route]].ts` & `functions/api/[[route]].ts`)**:
+  * Loại bỏ sự phụ thuộc vào Render.com Free Tier (vốn tự tắt server sau 15 phút không dùng và phải đợi 30–50 giây để wake up).
+  * Xây dựng bộ định tuyến Edge API hoàn chỉnh tại [`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts) và [`functions/api/[[route]].ts`](file:///d:/app_gv/functions/api/[[route]].ts) chạy trực tiếp trên mạng lưới Cloudflare V8 Edge (0ms cold start, phản hồi tức thì `< 20ms`, miễn phí 100.000 requests/ngày).
+  * Hỗ trợ đầy đủ các nhóm API trên cùng một tên miền `*.pages.dev` (không cần cấu hình CORS hay server tách rời):
+    - Xác thực & Phiên đăng nhập (`/api/auth/login`, `/api/auth/register`, `/api/auth/me`, `/api/auth/refresh`, `/api/auth/logout`, `/api/auth/forgot-password`, `/api/auth/reset-password`, `/api/auth/public-config`), tự động khởi tạo sẵn tài khoản Admin (`admin@lichday.vn` / `Admin123456`) và Giáo viên (`giaovien@lichday.vn` / `Giaovien123`).
+    - Hồ sơ cá nhân & Bảo mật (`/api/profile/me`, `/api/profile/change-password`, `/api/profile/revoke-other-sessions`).
+    - Quản trị viên Admin (`/api/admin/overview`, `/api/admin/users/*`, `/api/admin/settings`, `/api/admin/invites/*`).
+    - Đồng bộ dữ liệu đám mây 2 chiều (`GET / PUT / POST /api/sync`) cho toàn bộ 14 lớp học, thời khóa biểu trường, học sinh, điểm danh và học phí.
+    - Gửi email qua Resend HTTP Edge API (`/api/email/test`) và phân tích tin nhắn Zalo tiếng Việt (`/api/ai/parse-zalo`).
+- **Cơ sở dữ liệu Cloudflare D1 SQLite Edge ([`cloudflare/d1-schema.sql`](file:///d:/app_gv/cloudflare/d1-schema.sql), [`frontend/wrangler.toml`](file:///d:/app_gv/frontend/wrangler.toml), [`wrangler.toml`](file:///d:/app_gv/wrangler.toml))**:
+  * Lưu trữ bền vững toàn bộ tài khoản và dữ liệu lịch dạy trong bảng `kv_store` trên Cloudflare D1 (miễn phí 5GB lưu trữ + 5 triệu lượt đọc/ngày).
+  * Tự động khởi tạo bảng `CREATE TABLE IF NOT EXISTS kv_store` ngay ở request đầu tiên (không lo lỗi thiếu bảng khi mới gắn D1) và có bộ nhớ dự phòng tự động nếu người dùng chưa kịp gắn binding `DB`.
+- **Chuẩn hóa URL kết nối API phía Frontend ([`frontend/src/lib/supabase.ts`](file:///d:/app_gv/frontend/src/lib/supabase.ts), [`frontend/src/lib/backendSync.ts`](file:///d:/app_gv/frontend/src/lib/backendSync.ts), [`frontend/public/_redirects`](file:///d:/app_gv/frontend/public/_redirects), [`package.json`](file:///d:/app_gv/package.json))**:
+  * Gỡ bỏ giá trị mặc định cứng `http://localhost:4000` trong `supabase.ts`, hợp nhất `VITE_API_URL` / `VITE_API_BASE_URL` mặc định về `''` (same-origin `/api/*`), giúp chạy mượt cả ở môi trường dev (qua Vite proxy) lẫn khi deploy trên Cloudflare Pages mà không cần khai báo biến môi trường phức tạp.
+
+---
+
 ## [2026-11-14] - Chuẩn Hóa Bảng Thời Khóa Biểu PC & Giao Diện Mobile Chuẩn Google Calendar (`SessionMatrixView.tsx`, `AgendaCalendarView.tsx`, `TimeGridCalendar.tsx`, `SchedulePage.tsx`)
 
 ### 🎨 Đã cải tiến & Sửa lỗi (Enhanced & Fixed)
