@@ -389,12 +389,25 @@ async function loadAuthStore(env: Env): Promise<AuthStoreData> {
     if (store.users.length !== beforeLen) dirty = true
   }
 
-  // Chuẩn hóa status cũ ('approved' -> 'active')
+  // Chuẩn hóa status cũ ('approved' -> 'active') và loại bỏ trùng lặp email nếu có
+  const seenEmails = new Set<string>()
+  const dedupedUsers: StoredUser[] = []
   for (const u of store.users) {
     if ((u.status as string) === 'approved') {
       u.status = 'active'
       dirty = true
     }
+    const norm = normalizeEmail(u.email)
+    if (norm && seenEmails.has(norm)) {
+      dirty = true
+      continue
+    }
+    if (norm) seenEmails.add(norm)
+    dedupedUsers.push(u)
+  }
+  if (dedupedUsers.length !== store.users.length) {
+    store.users = dedupedUsers
+    dirty = true
   }
 
   // 1. Đảm bảo tài khoản Admin (tự động cấp quyền admin cho ADMIN_EMAIL nếu đã tồn tại, hoặc khởi tạo mới nếu có thêm DEFAULT_ADMIN_PASSWORD)
@@ -1156,6 +1169,13 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           true,
           req.headers.get('user-agent') || undefined
         )
+        appendAuditLog(store, {
+          actor_id: user.id,
+          actor_email: user.email,
+          action: linkedExisting ? 'google_account_linked' : 'login_google_redirect',
+          target_email: user.email,
+          detail: { message: linkedExisting ? 'Liên kết & đăng nhập bằng Google OAuth' : 'Đăng nhập bằng Google OAuth' },
+        })
         await saveAuthStore(env, store)
 
         return Response.redirect(
@@ -1237,6 +1257,13 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         true,
         req.headers.get('user-agent') || undefined
       )
+      appendAuditLog(store, {
+        actor_id: user.id,
+        actor_email: user.email,
+        action: linkedExisting ? 'google_account_linked' : 'login_google_redirect',
+        target_email: user.email,
+        detail: { message: 'Đăng nhập qua Google Redirect' },
+      })
       await saveAuthStore(env, store)
 
       return jsonResponse({
@@ -1292,6 +1319,13 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         rememberMe,
         req.headers.get('user-agent') || undefined
       )
+      appendAuditLog(store, {
+        actor_id: user.id,
+        actor_email: user.email,
+        action: 'login_success',
+        target_email: user.email,
+        detail: { message: 'Đăng nhập bằng Email & Mật khẩu' },
+      })
       await saveAuthStore(env, store)
 
       const profile = toPublicProfile(user)
@@ -1735,11 +1769,11 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           stats: {
             totalAccounts: profiles.length,
             totalTeachers: teachers.length,
-            pendingCount: profiles.filter((p) => p.status === 'pending').length,
-            activeCount: profiles.filter((p) => p.status === 'active').length,
-            lockedCount: profiles.filter((p) => p.status === 'locked').length,
-            unverifiedCount: profiles.filter((p) => !p.email_verified).length,
-            activeLast7Days: profiles.filter(
+            pendingCount: teachers.filter((p) => p.status === 'pending').length,
+            activeCount: teachers.filter((p) => p.status === 'active').length,
+            lockedCount: teachers.filter((p) => p.status === 'locked').length,
+            unverifiedCount: teachers.filter((p) => !p.email_verified).length,
+            activeLast7Days: teachers.filter(
               (p) => p.last_login_at && new Date(p.last_login_at).getTime() >= sevenDaysAgo
             ).length,
           },
@@ -1769,6 +1803,12 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
             count++
           }
         }
+        appendAuditLog(store, {
+          actor_id: auth.user.id,
+          actor_email: auth.user.email,
+          action: 'admin_bulk_approve',
+          detail: { approvedCount: count },
+        })
         await saveAuthStore(env, store)
         return jsonResponse({
           success: true,
@@ -1853,6 +1893,13 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           targetUser.email_verified = true
           targetUser.approved_at = new Date().toISOString()
           targetUser.approved_by = auth.user.id
+          appendAuditLog(store, {
+            actor_id: auth.user.id,
+            actor_email: auth.user.email,
+            action: 'admin_approve_account',
+            target_email: targetUser.email,
+            detail: { message: `Phê duyệt tài khoản ${targetUser.email}` },
+          })
           await saveAuthStore(env, store)
           return jsonResponse({
             success: true,
@@ -1866,6 +1913,13 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           targetUser.status = 'locked'
           targetUser.locked_reason = String(body.reason || 'Khóa bởi Quản trị viên')
           store.sessions = store.sessions.filter((s) => s.user_id !== targetUser.id)
+          appendAuditLog(store, {
+            actor_id: auth.user.id,
+            actor_email: auth.user.email,
+            action: 'admin_lock_account',
+            target_email: targetUser.email,
+            detail: { reason: targetUser.locked_reason },
+          })
           await saveAuthStore(env, store)
           return jsonResponse({
             success: true,
@@ -1877,6 +1931,13 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         if (method === 'POST' && subAction === 'unlock') {
           targetUser.status = 'active'
           targetUser.locked_reason = null
+          appendAuditLog(store, {
+            actor_id: auth.user.id,
+            actor_email: auth.user.email,
+            action: 'admin_unlock_account',
+            target_email: targetUser.email,
+            detail: { message: `Mở khóa tài khoản ${targetUser.email}` },
+          })
           await saveAuthStore(env, store)
           return jsonResponse({
             success: true,
@@ -1893,6 +1954,13 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           const pwErr = validatePasswordStrength(tempPw)
           if (pwErr) return jsonResponse({ success: false, error: pwErr }, 400)
           targetUser.password_hash = await hashPassword(tempPw)
+          appendAuditLog(store, {
+            actor_id: auth.user.id,
+            actor_email: auth.user.email,
+            action: 'admin_set_temp_password',
+            target_email: targetUser.email,
+            detail: { message: `Cấp mật khẩu tạm thời mới cho ${targetUser.email}` },
+          })
           await saveAuthStore(env, store)
           return jsonResponse({
             success: true,
@@ -1910,6 +1978,13 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           }
           store.users = store.users.filter((u) => u.id !== targetUser.id)
           store.sessions = store.sessions.filter((s) => s.user_id !== targetUser.id)
+          appendAuditLog(store, {
+            actor_id: auth.user.id,
+            actor_email: auth.user.email,
+            action: 'admin_delete_account',
+            target_email: targetUser.email,
+            detail: { message: `Xóa vĩnh viễn tài khoản ${targetUser.email}` },
+          })
           await saveAuthStore(env, store)
           return jsonResponse({
             success: true,
@@ -1936,6 +2011,12 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           store.appSettings.max_accounts = body.max_accounts
         }
         store.appSettings.updated_at = new Date().toISOString()
+        appendAuditLog(store, {
+          actor_id: auth.user.id,
+          actor_email: auth.user.email,
+          action: 'admin_update_settings',
+          detail: { registration_mode: store.appSettings.registration_mode },
+        })
         await saveAuthStore(env, store)
         return jsonResponse({
           success: true,
@@ -1970,6 +2051,13 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           revoked: false,
         }
         store.invites.unshift(invite)
+        appendAuditLog(store, {
+          actor_id: auth.user.id,
+          actor_email: auth.user.email,
+          action: 'admin_create_invite',
+          target_email: invite.email || undefined,
+          detail: { code: invite.code, max_uses: invite.max_uses },
+        })
         await saveAuthStore(env, store)
         return jsonResponse({
           success: true,
@@ -1987,6 +2075,12 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           const inv = store.invites.find((i) => i.id === invId)
           if (!inv) return jsonResponse({ success: false, error: 'Không tìm thấy mã mời.' }, 404)
           inv.revoked = true
+          appendAuditLog(store, {
+            actor_id: auth.user.id,
+            actor_email: auth.user.email,
+            action: 'admin_revoke_invite',
+            detail: { code: inv.code },
+          })
           await saveAuthStore(env, store)
           return jsonResponse({
             success: true,
@@ -1994,7 +2088,14 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           })
         }
         if (method === 'DELETE' && !sub) {
+          const inv = store.invites.find((i) => i.id === invId)
           store.invites = store.invites.filter((i) => i.id !== invId)
+          appendAuditLog(store, {
+            actor_id: auth.user.id,
+            actor_email: auth.user.email,
+            action: 'admin_delete_invite',
+            detail: { code: inv?.code || invId },
+          })
           await saveAuthStore(env, store)
           return jsonResponse({
             success: true,

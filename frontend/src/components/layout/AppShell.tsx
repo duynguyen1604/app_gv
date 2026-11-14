@@ -71,13 +71,6 @@ const ADMIN_PRIMARY_ITEMS = [
   },
 ]
 
-const ADMIN_PERSONAL_ITEMS = [
-  { to: '/schedule', label: 'Lịch dạy cá nhân', shortLabel: 'Lịch', icon: CalendarDays, tourId: 'nav-schedule' },
-  { to: '/classes', label: 'Lớp dạy cá nhân', shortLabel: 'Lớp', icon: BookOpen, tourId: 'nav-classes' },
-  { to: '/fees', label: 'Học phí cá nhân', shortLabel: 'Học phí', icon: Wallet, tourId: 'nav-fees' },
-  { to: '/settings', label: 'Cài đặt lịch dạy', shortLabel: 'Cài đặt', icon: Settings, tourId: 'nav-settings' },
-]
-
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation()
   const { darkMode, toggleDarkMode, classes, students, userId } = useAppStore()
@@ -216,55 +209,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </Link>
                 )
               })}
-
-              {/* Secondary section for Admin's own personal schedule */}
-              <div className="my-2 border-t border-gray-100 dark:border-[#2D2F34]" />
-              {!isSchedulePage && (
-                <div className="hidden desktop:block px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  Lịch dạy cá nhân (Tùy chọn)
-                </div>
-              )}
-              {ADMIN_PERSONAL_ITEMS.map(({ to, label, shortLabel, icon: Icon, tourId }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  title={label}
-                  data-tour={tourId}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-all duration-150 group relative',
-                      isSchedulePage
-                        ? 'justify-center flex-col gap-1 py-2 px-1'
-                        : 'justify-center desktop:justify-start',
-                      isActive
-                        ? 'bg-[#E8F0FE] dark:bg-[#1A73E8]/25 text-[#1A73E8] dark:text-[#8AB4F8] font-semibold'
-                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#282A2E] hover:text-gray-900 dark:hover:text-gray-100'
-                    )
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <Icon
-                        size={18}
-                        strokeWidth={isActive ? 2.4 : 1.8}
-                        className="shrink-0"
-                      />
-                      {isSchedulePage ? (
-                        <span className="text-[10px] leading-tight font-medium text-center">
-                          {shortLabel}
-                        </span>
-                      ) : (
-                        <>
-                          <span className="text-[10px] leading-tight desktop:hidden text-center">
-                            {shortLabel}
-                          </span>
-                          <span className="hidden desktop:inline truncate flex-1">{label}</span>
-                        </>
-                      )}
-                    </>
-                  )}
-                </NavLink>
-              ))}
             </>
           ) : (
             TEACHER_NAV_ITEMS.map(({ to, label, shortLabel, icon: Icon, tourId }) => (

@@ -2,6 +2,34 @@
 
 Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa bỏ) trong dự án Quản lý Lịch dạy Giáo viên được ghi lại chi tiết tại tệp này theo định dạng chuẩn [Keep a Changelog](https://keepachangelog.com/).
 
+## [2026-11-14] - Fix Đếm Sai Số "GV Đang Hoạt Động" & Chống Trùng Lặp Tài Khoản Trong Admin Overview
+
+### 🐛 Đã sửa (Fixed)
+- **Thống kê `stats` trong `GET /api/admin/overview` ([`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts))**:
+  * Sửa `pendingCount`, `activeCount`, `lockedCount`, `unverifiedCount`, `activeLast7Days` chỉ đếm trên `teachers` (`role === 'teacher'`), không đếm gộp tài khoản `admin` vào thẻ **"GV Đang hoạt động"**.
+  * Bổ sung bước khử trùng lặp `store.users` theo email chuẩn hóa (`normalizeEmail(u.email)`) trong `loadAuthStore` để tránh đếm 2 lần nếu trước đó từng có bản ghi trùng email.
+
+---
+
+## [2026-11-14] - Bổ Sung Ghi Nhận Đầy Đủ Nhật Ký Kiểm Toán (Audit Logs) Trên Cloudflare Edge
+
+### 🐛 Đã sửa (Fixed)
+- **Ghi nhận đầy đủ mọi sự kiện vào `store.auditLogs` ([`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts))**:
+  * Trước đây `appendAuditLog` chỉ được gọi ở 2 nơi (đăng ký mới & admin tạo tài khoản), khiến các thao tác khác không xuất hiện trong **Nhật ký kiểm toán**.
+  * Đã bổ sung `appendAuditLog` cho đầy đủ các hành động: đăng nhập (`login_success`, `login_google_redirect`, `google_account_linked`), duyệt tài khoản (`admin_approve_account`, `admin_bulk_approve`), khóa/mở khóa (`admin_lock_account`, `admin_unlock_account`), cấp mật khẩu mới (`admin_set_temp_password`), xóa tài khoản (`admin_delete_account`), đổi cài đặt (`admin_update_settings`), và tạo/thu hồi/xóa mã mời (`admin_create_invite`, `admin_revoke_invite`, `admin_delete_invite`).
+
+---
+
+## [2026-11-14] - Gỡ Bỏ Mục "Lịch Dạy Cá Nhân" Khỏi Tài Khoản Quản Trị Viên (Admin)
+
+### 🔧 Đã sửa (Changed)
+- **Tách biệt hoàn toàn giao diện Admin khỏi các trang dạy học cá nhân ([`frontend/src/components/layout/AppShell.tsx`](file:///d:/app_gv/frontend/src/components/layout/AppShell.tsx), [`frontend/src/pages/admin/AdminDashboardPage.tsx`](file:///d:/app_gv/frontend/src/pages/admin/AdminDashboardPage.tsx), [`frontend/src/App.tsx`](file:///d:/app_gv/frontend/src/App.tsx))**:
+  * Xóa mục **"Lịch dạy cá nhân (Tùy chọn)"** (`ADMIN_PERSONAL_ITEMS`) khỏi thanh điều hướng của tài khoản `admin` trong [`AppShell.tsx`](file:///d:/app_gv/frontend/src/components/layout/AppShell.tsx).
+  * Xóa nút/liên kết **"Mở Lịch dạy cá nhân của tôi"** trên banner của [`AdminDashboardPage.tsx`](file:///d:/app_gv/frontend/src/pages/admin/AdminDashboardPage.tsx).
+  * Bổ sung `TeacherOnlyRoute` trong [`App.tsx`](file:///d:/app_gv/frontend/src/App.tsx) để tự động điều hướng tài khoản `admin` về `/admin` nếu truy cập `/schedule`, `/classes`, `/fees`, `/settings`.
+
+---
+
 ## [2026-11-14] - Fix Quyền Admin Cấu Hình Từ Cloudflare Pages Không Tạo Được Mã Mời Giáo Viên
 
 ### 🐛 Đã sửa & Kiểm thử (Fixed & Tested)

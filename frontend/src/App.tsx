@@ -71,6 +71,14 @@ function RoleAwareHomeRedirect() {
   return <SchedulePage />
 }
 
+function TeacherOnlyRoute({ children }: { children: React.ReactNode }) {
+  const profile = useAuthStore((s) => s.profile)
+  if (profile?.role === 'admin') {
+    return <Navigate to="/admin" replace />
+  }
+  return <>{children}</>
+}
+
 export default function App() {
   const darkMode = useAppStore((s) => s.darkMode)
 
@@ -126,11 +134,46 @@ export default function App() {
                     <Route path="/" element={<RoleAwareHomeRedirect />} />
                     <Route path="/admin" element={<AdminDashboardPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
-                    <Route path="/schedule" element={<SchedulePage />} />
-                    <Route path="/classes" element={<ClassesPage />} />
-                    <Route path="/classes/:classId" element={<ClassDetailPage />} />
-                    <Route path="/fees" element={<FeesPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route
+                      path="/schedule"
+                      element={
+                        <TeacherOnlyRoute>
+                          <SchedulePage />
+                        </TeacherOnlyRoute>
+                      }
+                    />
+                    <Route
+                      path="/classes"
+                      element={
+                        <TeacherOnlyRoute>
+                          <ClassesPage />
+                        </TeacherOnlyRoute>
+                      }
+                    />
+                    <Route
+                      path="/classes/:classId"
+                      element={
+                        <TeacherOnlyRoute>
+                          <ClassDetailPage />
+                        </TeacherOnlyRoute>
+                      }
+                    />
+                    <Route
+                      path="/fees"
+                      element={
+                        <TeacherOnlyRoute>
+                          <FeesPage />
+                        </TeacherOnlyRoute>
+                      }
+                    />
+                    <Route
+                      path="/settings"
+                      element={
+                        <TeacherOnlyRoute>
+                          <SettingsPage />
+                        </TeacherOnlyRoute>
+                      }
+                    />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </AppShell>

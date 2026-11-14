@@ -617,20 +617,11 @@ export function AdminDashboardPage() {
         </div>
 
         {/* Child Data Privacy Commitment Strip */}
-        <div className="mt-4 pt-3.5 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-sky-100">
-          <div className="flex items-center gap-2">
-            <Lock size={14} className="shrink-0 text-emerald-300" />
-            <span>
-              <strong>Bảo vệ dữ liệu trẻ em & quyền riêng tư:</strong> Admin chỉ quản lý định danh tài khoản giáo viên; không xem danh sách lớp, học sinh, điểm danh hay học phí của giáo viên khác.
-            </span>
-          </div>
-          <Link
-            to="/schedule"
-            className="inline-flex items-center gap-1 text-xs font-bold text-sky-200 hover:text-white shrink-0 underline"
-          >
-            <CalendarDays size={13} />
-            Mở Lịch dạy cá nhân của tôi
-          </Link>
+        <div className="mt-4 pt-3.5 border-t border-white/15 flex items-center gap-2 text-xs text-sky-100">
+          <Lock size={14} className="shrink-0 text-emerald-300" />
+          <span>
+            <strong>Bảo vệ dữ liệu trẻ em & quyền riêng tư:</strong> Admin chỉ quản lý định danh tài khoản giáo viên; không xem danh sách lớp, học sinh, điểm danh hay học phí của giáo viên khác.
+          </span>
         </div>
       </div>
 
