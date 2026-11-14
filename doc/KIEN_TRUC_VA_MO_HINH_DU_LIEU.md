@@ -124,6 +124,7 @@ Dưới đây là đặc tả chi tiết các bảng dữ liệu, tương thích
 | `end_time` | `TEXT` | `HH:mm` | Giờ kết thúc. |
 | `note` | `TEXT` | `NULLABLE` | Ghi chú lý do phát sinh. |
 | `makeup_for` | `TEXT` | `NULLABLE` | ID ngoại lệ gốc nếu đây là buổi dạy bù. |
+| `custom_price` | `INTEGER` | `NULLABLE` | Học phí riêng của buổi phát sinh (nếu để trống `NULL` thì dùng giá mặc định của lớp). |
 
 ---
 
@@ -199,9 +200,10 @@ Dưới đây là đặc tả chi tiết các bảng dữ liệu, tương thích
 - **`notification_log`**: `id`, `sent_at`, `to_email`, `status`, `error`, `subject`, `user_id` — Nhật ký các email thông báo đã gửi.
 - **Row Level Security (RLS)**: Tất cả bảng mới đều bật `ENABLE ROW LEVEL SECURITY` kèm policy kiểm tra `user_id` để mỗi tài khoản chỉ đọc/ghi dữ liệu của chính mình.
 
-### 2.9. API đồng bộ & Google Calendar
+### 2.9. API đồng bộ, Hồ sơ & Google Calendar
 - `GET /api/sync?user_id=local` — kéo toàn bộ snapshot (bao gồm `paymentTransactions`, `monthLocks`, `changeLogs`, `calendarEventMap`, `calendarSyncLogs`).
 - `PUT /api/sync` (hoặc `POST`) — cập nhật snapshot trong một transaction và tự động kích hoạt đồng bộ Google Calendar chạy ngầm (debounce 3.5 giây).
+- `POST /api/profile/onboarding-complete` (và `PUT /api/profile/me` với `onboarding_completed: true`) — lưu trạng thái đã xem hướng dẫn sử dụng (`onboarding_completed`) theo tài khoản người dùng trên server/database.
 - `GET /api/gcal/auth-url`, `GET /api/gcal/callback`, `POST /api/gcal/connect`, `POST /api/gcal/sync-now`, `POST /api/gcal/clear-events`, `POST /api/gcal/disconnect`, `GET /api/gcal/feed.ics`.
 - `GET /api/health` — kiểm tra Postgres.
 - `POST /api/email/test`, `POST /api/ai/parse-zalo`, `POST /api/ai/parse-school-image`.

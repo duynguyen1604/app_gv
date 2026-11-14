@@ -289,6 +289,9 @@ export function getClassSessionsForMonth({
   start_time: string
   end_time: string
   rule_id?: string
+  extra_session_id?: string
+  custom_price?: number | null
+  extra_note?: string | null
   is_cancelled?: boolean
   cancel_reason?: string
 }[] {
@@ -299,6 +302,9 @@ export function getClassSessionsForMonth({
     start_time: string
     end_time: string
     rule_id?: string
+    extra_session_id?: string
+    custom_price?: number | null
+    extra_note?: string | null
     is_cancelled?: boolean
     cancel_reason?: string
   }[] = []
@@ -430,7 +436,18 @@ export function getClassSessionsForMonth({
           date: e.date,
           start_time: e.start_time,
           end_time: e.end_time,
+          extra_session_id: e.id,
+          custom_price: e.custom_price ?? null,
+          extra_note: e.note ?? null,
         })
+      } else {
+        already.extra_session_id = e.id
+        if (e.custom_price != null) {
+          already.custom_price = e.custom_price
+        }
+        if (e.note) {
+          already.extra_note = e.note
+        }
       }
     })
 
@@ -912,11 +929,16 @@ export function computeStudentMonthSessionDetails({
 
       const attStatus: AttendanceStatus | 'unmarked' = att ? att.status : 'unmarked'
       const isTrial = statusOnDate === 'trial'
+      const hasCustomExtraPrice =
+        sess.custom_price != null && Number.isFinite(Number(sess.custom_price))
+      const sessionBasePrice = hasCustomExtraPrice
+        ? Math.max(0, Math.round(Number(sess.custom_price)))
+        : enrollUnitPrice
       const trialUnitPrice = Math.max(
         0,
-        Math.round(student.trial_price ?? enrollUnitPrice)
+        Math.round(student.trial_price ?? sessionBasePrice)
       )
-      const effectiveUnitPrice = isTrial ? trialUnitPrice : enrollUnitPrice
+      const effectiveUnitPrice = isTrial ? trialUnitPrice : sessionBasePrice
       const charged =
         attStatus === 'present' ? effectiveUnitPrice : 0
 
@@ -942,6 +964,16 @@ export function computeStudentMonthSessionDetails({
       }
 
       const noteParts: string[] = []
+      if (sess.extra_session_id) {
+        noteParts.push(
+          hasCustomExtraPrice
+            ? `Buổi phát sinh (${formatMoney(sessionBasePrice)}/buổi)`
+            : 'Buổi phát sinh'
+        )
+        if (sess.extra_note && sess.extra_note !== lessonNote) {
+          noteParts.push(sess.extra_note)
+        }
+      }
       if (isTrial) {
         noteParts.push(
           trialUnitPrice === 0
@@ -1092,16 +1124,22 @@ export function computeStudentMonthSessionDetails({
     const key = `${att.class_id}|${att.date}|${att.start_time}`
     processedKeys.add(key)
     const cls = classes.find((c) => c.id === att.class_id)
+    const matchedExtra = extraSessions.find(
+      (e) =>
+        e.class_id === att.class_id &&
+        e.date === att.date &&
+        e.start_time === att.start_time
+    )
     const statusOnDate = resolveStudentStatusOnDate({
       student,
       dateStr: att.date,
       studentStatusHistory,
     })
     const isTrial = statusOnDate === 'trial'
-    const regularPrice = Math.max(
-      0,
-      Math.round(student.custom_price ?? cls?.price ?? defaultUnitPrice)
-    )
+    const regularPrice =
+      matchedExtra?.custom_price != null && Number.isFinite(Number(matchedExtra.custom_price))
+        ? Math.max(0, Math.round(Number(matchedExtra.custom_price)))
+        : Math.max(0, Math.round(student.custom_price ?? cls?.price ?? defaultUnitPrice))
     const unitPrice = isTrial
       ? Math.max(0, Math.round(student.trial_price ?? regularPrice))
       : regularPrice
@@ -1358,7 +1396,7 @@ export function computeStudentMonthRawDue({
   student: Student
   cls: Class | undefined
   monthStr: string
-  sessions: { date: string; start_time: string }[]
+  sessions: { date: string; start_time: string; custom_price?: number | null }[]
   attendance: Attendance[]
   monthLocks: MonthLock[]
   classes?: Class[]
@@ -1439,6 +1477,10 @@ export function computeStudentMonthRawDue({
   let absentCount = 0
   let excusedCount = 0
   let trialCount = 0
+  let due = 0
+
+  const rawPrice = student.custom_price ?? cls?.price ?? 0
+  const price = Math.max(0, Math.round(rawPrice))
 
   for (const session of sessions) {
     const statusOnDate = resolveStudentStatusOnDate({
@@ -1455,19 +1497,26 @@ export function computeStudentMonthRawDue({
         a.date === session.date &&
         a.start_time === session.start_time
     )
+    const sessionPrice =
+      session.custom_price != null && Number.isFinite(Number(session.custom_price))
+        ? Math.max(0, Math.round(Number(session.custom_price)))
+        : price
     if (att?.status === 'present') {
-      if (statusOnDate === 'trial') trialCount++
-      else presentCount++
+      if (statusOnDate === 'trial') {
+        trialCount++
+        if (student.trial_price != null && student.trial_price > 0) {
+          due += Math.max(0, Math.round(student.trial_price))
+        }
+      } else {
+        presentCount++
+        due += sessionPrice
+      }
     } else if (att?.status === 'absent') {
       absentCount++
     } else if (att?.status === 'excused') {
       excusedCount++
     }
   }
-
-  const rawPrice = student.custom_price ?? cls?.price ?? 0
-  const price = Math.max(0, Math.round(rawPrice))
-  const due = presentCount * price
 
   return {
     present_count: presentCount,
@@ -1934,7 +1983,8 @@ export function computeAllStudentDebtProfiles({
  */
 export function buildFeeRowFromProfile(
   profile: StudentDebtProfile,
-  monthStr: string
+  monthStr: string,
+  filterClassId?: string
 ): FeeRow {
   const mSummary = profile.months[monthStr] || {
     month: monthStr,
@@ -1957,6 +2007,106 @@ export function buildFeeRowFromProfile(
     cumulative_balance: profile.balance,
     status: profile.balance > 0 ? 'Đóng dư' : 'Đủ',
     is_locked: false,
+  }
+
+  // If filtering by a specific class and the student has multi-class breakdowns, scope counts & totals to filterClassId
+  if (
+    filterClassId &&
+    filterClassId !== 'all' &&
+    mSummary.class_breakdowns.length > 0 &&
+    (mSummary.class_breakdowns.length > 1 ||
+      mSummary.class_breakdowns[0]?.class_id !== filterClassId)
+  ) {
+    const matchingBreakdowns = mSummary.class_breakdowns.filter(
+      (b) => b.class_id === filterClassId
+    )
+    const matchingDetails = mSummary.session_details.filter(
+      (d) => (d.billed_class_id || d.class_id) === filterClassId
+    )
+    const classDue = matchingBreakdowns.reduce((sum, b) => sum + b.due_amount, 0)
+    const totalMonthDue = mSummary.due_amount
+    let classPaid = 0
+    if (totalMonthDue > 0) {
+      if (mSummary.allocated_paid >= totalMonthDue) {
+        classPaid = classDue
+      } else {
+        classPaid = Math.min(
+          classDue,
+          Math.round((mSummary.allocated_paid * classDue) / totalMonthDue)
+        )
+      }
+    } else if (profile.student.class_id === filterClassId) {
+      classPaid = mSummary.allocated_paid
+    }
+    const classShortage = Math.max(0, classDue - classPaid)
+
+    let presentCount = 0
+    let absentCount = 0
+    let excusedCount = 0
+    let trialCount = 0
+    let guestCount = 0
+    let unmarkedCount = 0
+
+    if (matchingDetails.length > 0) {
+      for (const item of matchingDetails) {
+        if (item.session_kind === 'cancelled_or_holiday' || item.session_kind === 'swapped_away')
+          continue
+        if (item.attendance_status === 'present') {
+          if (item.student_status_on_date === 'trial') {
+            trialCount++
+            if (item.charged_amount > 0) presentCount++
+          } else {
+            presentCount++
+          }
+          if (item.session_kind === 'guest_swap' || item.session_kind === 'guest_extra') {
+            guestCount++
+          }
+        } else if (item.attendance_status === 'absent') {
+          absentCount++
+        } else if (item.attendance_status === 'excused') {
+          excusedCount++
+        } else if (item.attendance_status === 'unmarked') {
+          unmarkedCount++
+        }
+      }
+    } else {
+      presentCount = matchingBreakdowns.reduce((s, b) => s + b.present_count, 0)
+      trialCount = matchingBreakdowns.reduce((s, b) => s + b.trial_count, 0)
+      guestCount = matchingBreakdowns.reduce((s, b) => s + b.guest_count, 0)
+    }
+
+    const classStatus: MonthFeeStatus =
+      classShortage === 0
+        ? mSummary.status === 'Đóng dư' && profile.student.class_id === filterClassId
+          ? 'Đóng dư'
+          : 'Đủ'
+        : classPaid > 0
+        ? 'Còn thiếu'
+        : 'Chưa đóng'
+
+    return {
+      student: profile.student,
+      class_id: matchingBreakdowns[0]?.class_id || profile.cls?.id,
+      class_name: matchingBreakdowns[0]?.class_name || profile.cls?.name,
+      class_color: matchingBreakdowns[0]?.class_color || profile.cls?.color,
+      present_count: presentCount,
+      absent_count: absentCount,
+      excused_count: excusedCount,
+      trial_count: trialCount,
+      guest_count: guestCount,
+      unmarked_count: unmarkedCount,
+      status_note: mSummary.status_note,
+      class_breakdowns: matchingBreakdowns,
+      price_per_session: mSummary.price_per_session,
+      total: classDue,
+      paid_amount: classPaid,
+      remaining_amount: classShortage,
+      cumulative_balance: mSummary.cumulative_balance,
+      status: classStatus,
+      is_locked: mSummary.is_locked,
+      paid: classStatus === 'Đủ' || classStatus === 'Đóng dư',
+      paid_at: null,
+    }
   }
 
   return {

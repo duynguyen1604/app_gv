@@ -570,6 +570,7 @@ export async function apiUpdateMyProfile(
     phone?: string | null
     school?: string | null
     avatar_url?: string | null
+    onboarding_completed?: boolean
   }
 ): Promise<{
   success: boolean
@@ -589,6 +590,46 @@ export async function apiUpdateMyProfile(
     throw new Error(data.error || 'Không thể cập nhật hồ sơ.')
   }
   return data
+}
+
+export async function apiCompleteOnboarding(sessionToken: string): Promise<{
+  success: boolean
+  profile?: UserProfile
+}> {
+  try {
+    const resp = await fetch(`${API_BASE_URL}/api/profile/onboarding-complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionToken}`,
+      },
+    })
+    if (resp.ok) {
+      const data = await resp.json()
+      return { success: true, profile: data.profile }
+    }
+  } catch {
+    // Fallback below
+  }
+
+  try {
+    const resp = await fetch(`${API_BASE_URL}/api/profile/me`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionToken}`,
+      },
+      body: JSON.stringify({ onboarding_completed: true }),
+    })
+    if (resp.ok) {
+      const data = await resp.json()
+      return { success: true, profile: data.profile }
+    }
+  } catch {
+    // ignore network error
+  }
+
+  return { success: false }
 }
 
 export async function apiChangeMyPassword(

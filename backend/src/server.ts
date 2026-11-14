@@ -28,6 +28,7 @@ import {
   requestPasswordReset,
   resetPasswordWithToken,
   updateMyProfile,
+  completeMyOnboarding,
   getMyAccountSecuritySummary,
   changeMyPassword,
   revokeOtherSessions,
@@ -280,11 +281,34 @@ app.put('/api/profile/me', async (req, res) => {
       phone: req.body?.phone,
       school: req.body?.school,
       avatarUrl: req.body?.avatar_url ?? req.body?.avatarUrl,
+      onboardingCompleted:
+        typeof req.body?.onboarding_completed === 'boolean'
+          ? req.body.onboarding_completed
+          : typeof req.body?.onboardingCompleted === 'boolean'
+            ? req.body.onboardingCompleted
+            : undefined,
       req,
     })
     res.json(result)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Không thể cập nhật hồ sơ.'
+    res.status(400).json({ success: false, error: message })
+  }
+})
+
+app.post('/api/profile/onboarding-complete', async (req, res) => {
+  const check = authenticateRequest(req)
+  if (!check.authenticated || !check.profile) {
+    return res.status(401).json({ success: false, error: 'Vui lòng đăng nhập lại.' })
+  }
+  try {
+    const result = await completeMyOnboarding({
+      userId: check.profile.id,
+      req,
+    })
+    res.json(result)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Không thể lưu trạng thái hướng dẫn.'
     res.status(400).json({ success: false, error: message })
   }
 })

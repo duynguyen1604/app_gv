@@ -14,6 +14,7 @@ export interface UserProfile {
   status: AccountStatus // 'pending' | 'active' | 'locked'
   email_verified: boolean
   auth_provider?: 'email' | 'google' | 'both'
+  onboarding_completed?: boolean
   created_at: string
   approved_by: string | null
   approved_at: string | null
@@ -223,6 +224,7 @@ export interface ExtraSession {
   end_time: string
   note: string | null
   makeup_for: string | null // SessionException id
+  custom_price?: number | null // Học phí buổi phát sinh (nếu trống/null thì dùng giá mặc định của lớp)
   user_id: string
 }
 
@@ -505,6 +507,8 @@ export interface CalendarSession {
   moved_from_date?: string
   needs_makeup?: boolean
   makeup_for?: string
+  extra_session_id?: string
+  custom_price?: number | null
   reason?: string
   note?: string
   student_count?: number

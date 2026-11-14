@@ -300,8 +300,10 @@ export function computeSessionsForDate(
       class_name: cls.name,
       location: cls.location,
       color: '#7C3AED', // Purple for extra
+      extra_session_id: ex.id,
+      custom_price: ex.custom_price ?? null,
       makeup_for: ex.makeup_for || undefined,
-      note: ex.note || 'Buổi học bù / phát sinh',
+      note: ex.note || 'Buổi học phát sinh',
       student_count: studentsCountByClass ? studentsCountByClass[cls.id] ?? 0 : undefined,
       guest_count: getGuestCount(cls.id, ex.start_time),
     })

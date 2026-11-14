@@ -220,7 +220,11 @@ export function FeesPage() {
         .map((st) => {
           const prof = profilesMap.get(st.id)
           if (!prof) return null
-          return buildFeeRowFromProfile(prof, selectedMonth)
+          return buildFeeRowFromProfile(
+            prof,
+            selectedMonth,
+            selectedClassId !== 'all' ? cls.id : undefined
+          )
         })
         .filter((r): r is FeeRow => r !== null)
 
@@ -364,10 +368,15 @@ export function FeesPage() {
       let due = 0
       let paid = 0
       for (const profile of profilesMap.values()) {
-        if (
-          selectedClassId !== 'all' &&
-          profile.student.class_id !== selectedClassId
-        ) {
+        if (selectedClassId !== 'all') {
+          const mInfo = profile.months[m]
+          const inClass =
+            profile.student.class_id === selectedClassId ||
+            Boolean(mInfo?.class_breakdowns.some((b) => b.class_id === selectedClassId))
+          if (!inClass) continue
+          const scopedRow = buildFeeRowFromProfile(profile, m, selectedClassId)
+          due += scopedRow.total
+          paid += scopedRow.paid_amount
           continue
         }
         const mInfo = profile.months[m]
@@ -786,22 +795,22 @@ export function FeesPage() {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            {mainMode !== 'debt' && (
-              <select
-                className="input text-xs py-1.5 font-semibold w-40"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-              >
-                {months.map((m) => (
-                  <option key={m} value={m}>
-                    {formatMonth(m)}
-                  </option>
-                ))}
-              </select>
-            )}
+            <select
+              aria-label="Chọn tháng"
+              className="input text-xs py-1.5 font-semibold w-40"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+            >
+              {months.map((m) => (
+                <option key={m} value={m}>
+                  {formatMonth(m)}
+                </option>
+              ))}
+            </select>
 
             <select
-              className="input text-xs py-1.5 font-semibold w-44"
+              aria-label="Lọc theo lớp"
+              className="input text-xs py-1.5 font-semibold w-48"
               value={selectedClassId}
               onChange={(e) => setSelectedClassId(e.target.value)}
             >
@@ -940,18 +949,34 @@ export function FeesPage() {
             {/* DESKTOP FULL DATA TABLE (>= 1200px) */}
             <div className="hidden desktop:block card overflow-hidden">
               <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
-                <div className="relative w-80">
-                  <Search
-                    size={15}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                  />
-                  <input
-                    type="text"
-                    value={headerSearch}
-                    onChange={(e) => setHeaderSearch(e.target.value)}
-                    placeholder="Lọc nhanh tên học sinh, phụ huynh, lớp..."
-                    className="input pl-9 py-1.5 text-xs"
-                  />
+                <div className="flex items-center gap-2.5">
+                  <div className="relative w-72">
+                    <Search
+                      size={15}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+                    <input
+                      type="text"
+                      value={headerSearch}
+                      onChange={(e) => setHeaderSearch(e.target.value)}
+                      placeholder="Lọc nhanh tên học sinh, phụ huynh, lớp..."
+                      className="input pl-9 py-1.5 text-xs"
+                    />
+                  </div>
+
+                  <select
+                    aria-label="Lọc theo lớp trong bảng"
+                    className="input text-xs py-1.5 font-semibold w-44"
+                    value={selectedClassId}
+                    onChange={(e) => setSelectedClassId(e.target.value)}
+                  >
+                    <option value="all">Tất cả lớp ({classes.length})</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="flex items-center gap-1.5">

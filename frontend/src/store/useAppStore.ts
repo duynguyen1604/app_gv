@@ -1016,13 +1016,79 @@ export const useAppStore = create<AppState>()(
         return ex
       },
       updateExtraSession: (id, data) =>
-        set((s) => ({
-          extraSessions: s.extraSessions.map((e) => (e.id === id ? { ...e, ...data } : e)),
-        })),
+        set((s) => {
+          const oldEx = s.extraSessions.find((e) => e.id === id)
+          const nextExtraSessions = s.extraSessions.map((e) =>
+            e.id === id ? { ...e, ...data } : e
+          )
+          if (!oldEx) {
+            return { extraSessions: nextExtraSessions }
+          }
+          const nextEx = { ...oldEx, ...data }
+          const keyChanged =
+            oldEx.class_id !== nextEx.class_id ||
+            oldEx.date !== nextEx.date ||
+            oldEx.start_time !== nextEx.start_time
+          if (!keyChanged) {
+            return { extraSessions: nextExtraSessions }
+          }
+          const nextAttendance = s.attendance.map((a) =>
+            a.class_id === oldEx.class_id &&
+            a.date === oldEx.date &&
+            (a.start_time || '') === (oldEx.start_time || '')
+              ? {
+                  ...a,
+                  class_id: nextEx.class_id,
+                  date: nextEx.date,
+                  start_time: nextEx.start_time,
+                }
+              : a
+          )
+          const nextSessionNotes = s.sessionNotes.map((n) =>
+            n.class_id === oldEx.class_id &&
+            n.date === oldEx.date &&
+            (n.start_time || '') === (oldEx.start_time || '')
+              ? {
+                  ...n,
+                  class_id: nextEx.class_id,
+                  date: nextEx.date,
+                  start_time: nextEx.start_time,
+                }
+              : n
+          )
+          return {
+            extraSessions: nextExtraSessions,
+            attendance: nextAttendance,
+            sessionNotes: nextSessionNotes,
+          }
+        }),
       deleteExtraSession: (id) =>
-        set((s) => ({
-          extraSessions: s.extraSessions.filter((e) => e.id !== id),
-        })),
+        set((s) => {
+          const target = s.extraSessions.find((e) => e.id === id)
+          const nextExtraSessions = s.extraSessions.filter((e) => e.id !== id)
+          if (!target) {
+            return { extraSessions: nextExtraSessions }
+          }
+          return {
+            extraSessions: nextExtraSessions,
+            attendance: s.attendance.filter(
+              (a) =>
+                !(
+                  a.class_id === target.class_id &&
+                  a.date === target.date &&
+                  (a.start_time || '') === (target.start_time || '')
+                )
+            ),
+            sessionNotes: s.sessionNotes.filter(
+              (n) =>
+                !(
+                  n.class_id === target.class_id &&
+                  n.date === target.date &&
+                  (n.start_time || '') === (target.start_time || '')
+                )
+            ),
+          }
+        }),
 
       // School Periods
       schoolPeriods: INITIAL_SCHOOL_PERIODS,

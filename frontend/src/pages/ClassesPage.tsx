@@ -12,6 +12,7 @@ import {
   Search,
   ClipboardCheck,
   Sparkles,
+  CalendarPlus,
 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { TopBar } from '../components/ui/TopBar'
@@ -19,9 +20,11 @@ import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { ColorPicker } from '../components/ui/ColorPicker'
 import { EmptyState } from '../components/ui/EmptyState'
-import { formatMoney, getWeekdayName } from '../lib/dateUtils'
+import { AddExtraSessionModal } from '../components/schedule/SessionActionModals'
+import { formatMoney, getWeekdayName, formatDate } from '../lib/dateUtils'
 import { randomClassColor } from '../lib/utils'
-import type { Class, ScheduleRule } from '../types'
+import type { Class, ScheduleRule, ExtraSession } from '../types'
+import toast from 'react-hot-toast'
 
 // Form for adding/editing a class
 function ClassForm({
@@ -109,11 +112,24 @@ function ClassForm({
 
 export function ClassesPage() {
   const navigate = useNavigate()
-  const { classes, students, scheduleRules, addClass, updateClass, deleteClass } = useAppStore()
+  const {
+    classes,
+    students,
+    scheduleRules,
+    extraSessions,
+    addClass,
+    updateClass,
+    deleteClass,
+    deleteExtraSession,
+  } = useAppStore()
   const [showAdd, setShowAdd] = useState(false)
   const [editClass, setEditClass] = useState<Class | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showExtraModal, setShowExtraModal] = useState(false)
+  const [extraPresetClassId, setExtraPresetClassId] = useState<string | undefined>(undefined)
+  const [editingExtraSession, setEditingExtraSession] = useState<ExtraSession | null>(null)
+  const [deleteExtraId, setDeleteExtraId] = useState<string | null>(null)
 
   const handleAdd = (data: Omit<Class, 'id' | 'created_at' | 'user_id'>) => {
     addClass(data)
@@ -148,9 +164,25 @@ export function ClassesPage() {
         title="Danh sách lớp dạy thêm"
         subtitle={`${classes.length} lớp đang hoạt động · ${totalActiveStudents} học sinh`}
         rightContent={
-          <button onClick={() => setShowAdd(true)} className="btn-primary">
-            <Plus size={17} /> <span>Thêm lớp</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {classes.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingExtraSession(null)
+                  setExtraPresetClassId(classes[0]?.id)
+                  setShowExtraModal(true)
+                }}
+                className="btn-secondary text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/70 bg-purple-50/70 dark:bg-purple-950/30 hover:bg-purple-100/70"
+              >
+                <CalendarPlus size={16} />
+                <span>Lịch học phát sinh</span>
+              </button>
+            )}
+            <button onClick={() => setShowAdd(true)} className="btn-primary">
+              <Plus size={17} /> <span>Thêm lớp</span>
+            </button>
+          </div>
         }
       />
 
@@ -219,6 +251,9 @@ export function ClassesPage() {
               const rules = scheduleRules
                 .filter((r) => r.class_id === cls.id)
                 .sort((a, b) => a.weekday - b.weekday)
+              const clsExtras = extraSessions
+                .filter((e) => e.class_id === cls.id)
+                .sort((a, b) => b.date.localeCompare(a.date) || b.start_time.localeCompare(a.start_time))
 
               return (
                 <div
@@ -298,25 +333,119 @@ export function ClassesPage() {
                     )}
 
                     {/* Schedule chips */}
-                    <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex-1">
-                      <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5">
-                        Lịch học cố định
-                      </div>
-                      {rules.length === 0 ? (
-                        <p className="text-xs text-slate-400 italic">Chưa đặt lịch cố định</p>
-                      ) : (
-                        <div className="flex flex-wrap gap-1.5">
-                          {rules.map((r) => (
-                            <span
-                              key={r.id}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-orange-50/90 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300 border border-orange-200/60 dark:border-orange-800/40"
-                            >
-                              <Clock size={11} />
-                              {getWeekdayName(r.weekday)} · {r.start_time}–{r.end_time}
-                            </span>
-                          ))}
+                    <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex-1 space-y-3">
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5">
+                          Lịch học cố định
                         </div>
-                      )}
+                        {rules.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic">Chưa đặt lịch cố định</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {rules.map((r) => (
+                              <span
+                                key={r.id}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-orange-50/90 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300 border border-orange-200/60 dark:border-orange-800/40"
+                              >
+                                <Clock size={11} />
+                                {getWeekdayName(r.weekday)} · {r.start_time}–{r.end_time}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Extra Sessions (Lịch học phát sinh) */}
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="pt-2.5 border-t border-dashed border-slate-200/80 dark:border-slate-800"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="text-[11px] font-semibold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                            <Sparkles size={11} />
+                            Lịch học phát sinh ({clsExtras.length})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingExtraSession(null)
+                              setExtraPresetClassId(cls.id)
+                              setShowExtraModal(true)
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-950/70 border border-purple-200/70 dark:border-purple-800/60 transition-colors"
+                          >
+                            <Plus size={11} /> Thêm buổi
+                          </button>
+                        </div>
+
+                        {clsExtras.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic">Chưa có buổi phát sinh</p>
+                        ) : (
+                          <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-0.5">
+                            {clsExtras.slice(0, 4).map((ex) => {
+                              const effectivePrice =
+                                ex.custom_price != null ? ex.custom_price : cls.price
+                              return (
+                                <div
+                                  key={ex.id}
+                                  className="flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200/60 dark:border-purple-800/40 text-xs"
+                                >
+                                  <div
+                                    onClick={() =>
+                                      navigate(
+                                        `/classes/${cls.id}?tab=attendance&session=${encodeURIComponent(`${ex.date}|${ex.start_time}`)}`
+                                      )
+                                    }
+                                    className="min-w-0 flex-1 cursor-pointer"
+                                    title="Bấm để điểm danh buổi phát sinh này"
+                                  >
+                                    <div className="font-semibold text-purple-900 dark:text-purple-200 truncate">
+                                      {formatDate(ex.date)} · {ex.start_time}–{ex.end_time}
+                                    </div>
+                                    <div className="text-[11px] text-purple-700/90 dark:text-purple-300/80 truncate">
+                                      {formatMoney(effectivePrice)}/buổi
+                                      {ex.custom_price != null ? ' (giá riêng)' : ' (mặc định)'}
+                                      {ex.note ? ` · ${ex.note}` : ''}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-0.5 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingExtraSession(ex)
+                                        setExtraPresetClassId(cls.id)
+                                        setShowExtraModal(true)
+                                      }}
+                                      className="p-1 rounded hover:bg-purple-100 dark:hover:bg-purple-900/50 text-slate-500 hover:text-purple-700 dark:text-slate-400 dark:hover:text-purple-200"
+                                      title="Sửa buổi phát sinh"
+                                    >
+                                      <Pencil size={12} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeleteExtraId(ex.id)}
+                                      className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-slate-400 hover:text-red-600"
+                                      title="Xóa buổi phát sinh"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                            {clsExtras.length > 4 && (
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/classes/${cls.id}?tab=schedule`)}
+                                className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold text-left hover:underline"
+                              >
+                                Xem tất cả {clsExtras.length} buổi phát sinh →
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -367,6 +496,33 @@ export function ClassesPage() {
         title="Xóa lớp học"
         message={`Bạn có chắc muốn xóa lớp "${classToDelete?.name}"? Toàn bộ học sinh và dữ liệu điểm danh của lớp này sẽ bị xóa.`}
         confirmLabel="Xóa lớp"
+      />
+
+      {/* Add / Edit Extra Session Modal */}
+      <AddExtraSessionModal
+        open={showExtraModal}
+        onClose={() => {
+          setShowExtraModal(false)
+          setEditingExtraSession(null)
+        }}
+        presetClassId={extraPresetClassId}
+        editSession={editingExtraSession}
+      />
+
+      {/* Delete Extra Session Confirm */}
+      <ConfirmDialog
+        open={!!deleteExtraId}
+        onClose={() => setDeleteExtraId(null)}
+        onConfirm={() => {
+          if (deleteExtraId) {
+            deleteExtraSession(deleteExtraId)
+            toast.success('Đã xóa buổi học phát sinh')
+          }
+          setDeleteExtraId(null)
+        }}
+        title="Xóa buổi học phát sinh"
+        message="Bạn có chắc muốn xóa buổi học phát sinh này? Dữ liệu điểm danh của buổi phát sinh này cũng sẽ được gỡ bỏ."
+        confirmLabel="Xóa buổi phát sinh"
       />
     </div>
   )

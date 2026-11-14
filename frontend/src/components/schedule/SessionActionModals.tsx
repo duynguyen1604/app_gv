@@ -3,8 +3,8 @@ import { AlertTriangle, MessageSquare, Copy, Check, ArrowRight } from 'lucide-re
 import { Modal } from '../ui/Modal'
 import { checkScheduleConflict } from '../../lib/conflictDetector'
 import { useAppStore } from '../../store/useAppStore'
-import { formatFullDate, formatDate } from '../../lib/dateUtils'
-import type { CalendarSession } from '../../types'
+import { formatFullDate, formatDate, formatMoney } from '../../lib/dateUtils'
+import type { CalendarSession, ExtraSession } from '../../types'
 import toast from 'react-hot-toast'
 
 // 1. Move Session Modal (Supports both button click & Drag-and-Drop confirmation "Chỉ tuần này")
@@ -363,7 +363,7 @@ Kính mong quý phụ huynh thông cảm. Trân trọng!`
   )
 }
 
-// 3. Add Extra Session Modal (Full details)
+// 3. Add / Edit Extra Session Modal (Full details)
 export function AddExtraSessionModal({
   open,
   onClose,
@@ -371,6 +371,8 @@ export function AddExtraSessionModal({
   initialStart,
   initialEnd,
   makeupForId,
+  presetClassId,
+  editSession,
 }: {
   open: boolean
   onClose: () => void
@@ -378,6 +380,8 @@ export function AddExtraSessionModal({
   initialStart?: string
   initialEnd?: string
   makeupForId?: string | null
+  presetClassId?: string
+  editSession?: ExtraSession | null
 }) {
   const {
     classes,
@@ -387,29 +391,63 @@ export function AddExtraSessionModal({
     sessionExceptions,
     extraSessions,
     addExtraSession,
+    updateExtraSession,
   } = useAppStore()
 
   const makeupEx = sessionExceptions.find(e => e.id === makeupForId)
   const makeupRule = scheduleRules.find(r => r.id === makeupEx?.rule_id)
 
-  const [classId, setClassId] = useState(() => makeupRule?.class_id || classes[0]?.id || '')
-  const [date, setDate] = useState(() => initialDate || new Date().toISOString().substring(0, 10))
-  const [startTime, setStartTime] = useState(() => initialStart || '18:00')
-  const [endTime, setEndTime] = useState(() => initialEnd || '19:30')
+  const [classId, setClassId] = useState(
+    () => editSession?.class_id || presetClassId || makeupRule?.class_id || classes[0]?.id || ''
+  )
+  const [date, setDate] = useState(
+    () => editSession?.date || initialDate || new Date().toISOString().substring(0, 10)
+  )
+  const [startTime, setStartTime] = useState(() => editSession?.start_time || initialStart || '18:00')
+  const [endTime, setEndTime] = useState(() => editSession?.end_time || initialEnd || '19:30')
+  const [customPrice, setCustomPrice] = useState(() =>
+    editSession?.custom_price != null ? String(editSession.custom_price) : ''
+  )
   const [note, setNote] = useState(() =>
-    makeupEx ? `Dạy bù cho buổi ngày ${formatDate(makeupEx.original_date)}` : ''
+    editSession
+      ? editSession.note || ''
+      : makeupEx
+      ? `Dạy bù cho buổi ngày ${formatDate(makeupEx.original_date)}`
+      : ''
   )
 
   useEffect(() => {
     if (open) {
-      if (makeupRule?.class_id) setClassId(makeupRule.class_id)
-      else if (!classId && classes[0]?.id) setClassId(classes[0].id)
-      if (initialDate) setDate(initialDate)
-      if (initialStart) setStartTime(initialStart)
-      if (initialEnd) setEndTime(initialEnd)
-      setNote(makeupEx ? `Dạy bù cho buổi ngày ${formatDate(makeupEx.original_date)}` : '')
+      if (editSession) {
+        setClassId(editSession.class_id)
+        setDate(editSession.date)
+        setStartTime(editSession.start_time)
+        setEndTime(editSession.end_time)
+        setCustomPrice(editSession.custom_price != null ? String(editSession.custom_price) : '')
+        setNote(editSession.note || '')
+      } else {
+        if (presetClassId) setClassId(presetClassId)
+        else if (makeupRule?.class_id) setClassId(makeupRule.class_id)
+        else if (!classId && classes[0]?.id) setClassId(classes[0].id)
+        setDate(initialDate || new Date().toISOString().substring(0, 10))
+        setStartTime(initialStart || '18:00')
+        setEndTime(initialEnd || '19:30')
+        setCustomPrice('')
+        setNote(makeupEx ? `Dạy bù cho buổi ngày ${formatDate(makeupEx.original_date)}` : '')
+      }
     }
-  }, [open, initialDate, initialStart, initialEnd, makeupForId, makeupRule, makeupEx, classes])
+  }, [
+    open,
+    editSession,
+    presetClassId,
+    initialDate,
+    initialStart,
+    initialEnd,
+    makeupForId,
+    makeupRule,
+    makeupEx,
+    classes,
+  ])
 
   const selectedClass = classes.find(c => c.id === classId)
 
@@ -421,6 +459,7 @@ export function AddExtraSessionModal({
       end_time: endTime,
       class_id: classId,
       location: selectedClass?.location,
+      excludeExtraId: editSession ? editSession.id : undefined,
       schoolSchedule,
       schoolPeriods,
       scheduleRules,
@@ -434,6 +473,7 @@ export function AddExtraSessionModal({
     endTime,
     classId,
     selectedClass,
+    editSession,
     schoolSchedule,
     schoolPeriods,
     scheduleRules,
@@ -448,17 +488,40 @@ export function AddExtraSessionModal({
       toast.error('Vui lòng chọn lớp')
       return
     }
+    if (!date || !startTime || !endTime) {
+      toast.error('Vui lòng nhập đầy đủ ngày và giờ học')
+      return
+    }
+    if (startTime >= endTime) {
+      toast.error('Giờ kết thúc phải sau giờ bắt đầu')
+      return
+    }
 
-    addExtraSession({
-      class_id: classId,
-      date,
-      start_time: startTime,
-      end_time: endTime,
-      note: note.trim() || null,
-      makeup_for: makeupForId || null,
-    })
+    const parsedCustomPrice =
+      customPrice.trim() === '' ? null : Math.max(0, Math.round(Number(customPrice)))
 
-    toast.success(makeupForId ? 'Đã xếp lịch dạy bù thành công!' : 'Đã thêm buổi phát sinh mới!')
+    if (editSession) {
+      updateExtraSession(editSession.id, {
+        class_id: classId,
+        date,
+        start_time: startTime,
+        end_time: endTime,
+        custom_price: parsedCustomPrice,
+        note: note.trim() || null,
+      })
+      toast.success('Đã cập nhật buổi học phát sinh!')
+    } else {
+      addExtraSession({
+        class_id: classId,
+        date,
+        start_time: startTime,
+        end_time: endTime,
+        custom_price: parsedCustomPrice,
+        note: note.trim() || null,
+        makeup_for: makeupForId || null,
+      })
+      toast.success(makeupForId ? 'Đã xếp lịch dạy bù thành công!' : 'Đã thêm buổi học phát sinh mới!')
+    }
     onClose()
   }
 
@@ -466,10 +529,16 @@ export function AddExtraSessionModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={makeupForId ? 'Xếp lịch dạy bù' : 'Thêm buổi phát sinh (Chi tiết)'}
+      title={
+        editSession
+          ? 'Sửa lịch học phát sinh'
+          : makeupForId
+          ? 'Xếp lịch dạy bù'
+          : 'Thêm lịch học phát sinh'
+      }
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {makeupEx && (
+        {makeupEx && !editSession && (
           <div className="p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-700 dark:text-amber-300">
             Dạy bù cho buổi hủy ngày <strong>{formatDate(makeupEx.original_date)}</strong>
             {makeupEx.reason && ` (${makeupEx.reason})`}
@@ -485,7 +554,7 @@ export function AddExtraSessionModal({
           >
             {classes.map(c => (
               <option key={c.id} value={c.id}>
-                {c.name} {c.location ? `(${c.location})` : ''}
+                {c.name} {c.location ? `(${c.location})` : ''} — {formatMoney(c.price)}/buổi
               </option>
             ))}
           </select>
@@ -523,7 +592,29 @@ export function AddExtraSessionModal({
         </div>
 
         <div>
-          <label className="label">Ghi chú</label>
+          <label className="label">Học phí buổi này (VNĐ, không bắt buộc)</label>
+          <input
+            type="number"
+            min={0}
+            step={1000}
+            className="input"
+            placeholder={
+              selectedClass
+                ? `Để trống = giữ giá mặc định của lớp (${formatMoney(selectedClass.price)})`
+                : 'Để trống = giữ nguyên giá mặc định của lớp'
+            }
+            value={customPrice}
+            onChange={e => setCustomPrice(e.target.value)}
+          />
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            {customPrice.trim() !== ''
+              ? `Buổi phát sinh này sẽ tính ${formatMoney(Math.max(0, Math.round(Number(customPrice) || 0)))}/buổi thay cho giá mặc định.`
+              : `Đang để trống: giữ nguyên giá mặc định của lớp (${selectedClass ? formatMoney(selectedClass.price) : '0đ'}/buổi).`}
+          </p>
+        </div>
+
+        <div>
+          <label className="label">Ghi chú (không bắt buộc)</label>
           <input
             className="input"
             placeholder="Vd: Ôn thi giữa kỳ, phụ đạo học sinh..."
@@ -559,7 +650,7 @@ export function AddExtraSessionModal({
             Hủy
           </button>
           <button type="submit" className="btn-primary flex-1">
-            {makeupForId ? 'Xếp lịch bù' : 'Thêm buổi'}
+            {editSession ? 'Lưu thay đổi' : makeupForId ? 'Xếp lịch bù' : 'Thêm buổi phát sinh'}
           </button>
         </div>
       </form>

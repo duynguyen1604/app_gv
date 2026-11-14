@@ -169,6 +169,7 @@ interface UserProfile {
   status: AccountStatus
   email_verified: boolean
   auth_provider?: 'email' | 'google' | 'both'
+  onboarding_completed?: boolean
   created_at: string
   approved_by: string | null
   approved_at: string | null
@@ -277,6 +278,8 @@ function toPublicProfile(user: StoredUser): UserProfile {
     status: normalizedStatus,
     email_verified: user.email_verified !== false,
     auth_provider: user.auth_provider || 'email',
+    // Tài khoản cũ (chưa có trường onboarding_completed) mặc định là true (đã xem); chỉ tài khoản mới tạo mới có false
+    onboarding_completed: user.onboarding_completed !== false,
     created_at: user.created_at,
     approved_by: user.approved_by || null,
     approved_at: user.approved_at || null,
@@ -767,6 +770,7 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
             status: 'active', // Đăng ký bằng Google tự động kích hoạt ngay, KHÔNG cần Admin duyệt
             email_verified: true,
             auth_provider: 'google',
+            onboarding_completed: false,
             created_at: nowIso,
             approved_at: nowIso,
             approved_by: 'GOOGLE_OAUTH_AUTO',
@@ -844,6 +848,7 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           status: 'active', // Đăng ký bằng Google tự động kích hoạt ngay, KHÔNG cần Admin duyệt
           email_verified: true,
           auth_provider: 'google',
+          onboarding_completed: false,
           created_at: nowIso,
           approved_at: nowIso,
           approved_by: 'GOOGLE_OAUTH_AUTO',
@@ -1001,6 +1006,7 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         status: initialStatus,
         email_verified: true,
         auth_provider: 'email',
+        onboarding_completed: false,
         created_at: nowIso,
         approved_at: autoActive ? nowIso : null,
         approved_by: autoActive ? 'SYSTEM' : null,
@@ -1240,12 +1246,28 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
       if (body.avatar_url !== undefined) {
         auth.user.avatar_url = body.avatar_url || null
       }
+      if (typeof body.onboarding_completed === 'boolean') {
+        auth.user.onboarding_completed = body.onboarding_completed
+      }
 
       await saveAuthStore(env, store)
       return jsonResponse({
         success: true,
         profile: toPublicProfile(auth.user),
         message: 'Đã lưu thông tin hồ sơ cá nhân.',
+      })
+    }
+
+    if (method === 'POST' && path === '/api/profile/onboarding-complete') {
+      const store = await loadAuthStore(env)
+      const auth = await getAuthenticatedUser(req, store)
+      if (!auth) return jsonResponse({ success: false, error: 'Chưa đăng nhập.' }, 401)
+      auth.user.onboarding_completed = true
+      await saveAuthStore(env, store)
+      return jsonResponse({
+        success: true,
+        profile: toPublicProfile(auth.user),
+        message: 'Đã ghi nhận hoàn thành hướng dẫn sử dụng.',
       })
     }
 
@@ -1416,6 +1438,7 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           status,
           email_verified: true,
           auth_provider: 'email',
+          onboarding_completed: false,
           created_at: nowIso,
           approved_at: status === 'active' ? nowIso : null,
           approved_by: status === 'active' ? auth.user.id : null,

@@ -52,7 +52,8 @@ Toàn bộ logic giao diện, nghiệp vụ tính toán, cơ chế lưu trữ c�
 ---
 
 ### 2. Danh sách lớp dạy thêm & Chi tiết lớp
-- [x] **Thẻ lớp học**: Tên lớp, địa điểm, các thứ học cố định, sĩ số, giá/buổi, màu sắc đại diện.
+- [x] **Thẻ lớp học**: Tên lớp, địa điểm, các thứ học cố định, danh sách lịch học phát sinh, sĩ số, giá/buổi, màu sắc đại diện.
+- [x] **Lịch học phát sinh (`ExtraSession`)**: Tạo buổi học phát sinh ngoài lịch cố định (chọn lớp, ngày, giờ bắt đầu/kết thúc, ghi chú không bắt buộc và ô **"Học phí buổi này"** không bắt buộc: nếu nhập số tiền thì tính theo mức giá riêng này, nếu để trống thì giữ nguyên giá mặc định của lớp). Hiển thị trên lịch dạy, điểm danh, tính học phí và cho phép **Sửa / Xóa** buổi phát sinh.
 - [x] **Thêm / Sửa / Xóa lớp**: Có hộp thoại xác nhận xóa (`ConfirmDialog`) để tránh xóa nhầm dữ liệu.
 - [x] **Tab trong chi tiết lớp**: 3 tab rõ ràng (Học sinh, Lịch học cố định, Điểm danh).
 - [x] **Quản lý học sinh**:
@@ -140,6 +141,9 @@ Toàn bộ logic giao diện, nghiệp vụ tính toán, cơ chế lưu trữ c�
   * Cấu hình Supabase Auth + SMTP riêng (Resend/Nodemailer) với bộ mẫu thư tiếng Việt có logo và nút bấm lớn (`authMailer.ts`).
   * Bảng `profiles`, `app_settings`, `invites`, `audit_log` và trigger bảo vệ quyền `admin` duy nhất theo biến môi trường `ADMIN_EMAIL` ở phía server.
   * Đầy đủ các màn hình: Đăng nhập (`LoginPage`), Đăng ký có thanh đo độ mạnh mật khẩu + Điều khoản & Chính sách bảo mật + Cloudflare Turnstile (`RegisterPage`), Xác minh Email có giới hạn tần suất gửi lại (`VerifyEmailPage`), Đăng nhập Google bằng chuyển trang (redirect, không dùng popup) kèm tự động liên kết tài khoản trùng email (`AuthCallbackPage`), Màn chờ Admin duyệt (`PendingApprovalPage`), Màn tài khoản bị khóa (`LockedAccountPage`), và thanh cảnh báo vàng giữ nguyên dữ liệu chưa lưu khi hết phiên giữa chừng trên iPhone PWA (`SessionExpiredBanner`).
+- [x] **Hướng dẫn sử dụng từng bước (`OnboardingTour.tsx`) lưu trạng thái theo tài khoản trên Server**:
+  * Tự động hiện đúng 1 lần khi tài khoản mới đăng ký (Email/Mật khẩu hoặc Google) đăng nhập lần đầu (`onboarding_completed = false`); lưu `onboarding_completed = true` trên server/database khi hoàn thành hoặc bỏ qua để không hiện lại khi đổi thiết bị.
+  * 6 bước spotlight/tooltip trực quan kèm nút **"Hướng dẫn (?)"** cố định trên thanh đầu trang, menu bên trái và trang Cài đặt để xem lại bất cứ lúc nào.
 
 ---
 

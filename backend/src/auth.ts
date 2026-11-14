@@ -31,6 +31,7 @@ export interface UserProfileRecord {
   status: AccountStatus
   email_verified: boolean
   auth_provider: 'email' | 'google' | 'both'
+  onboarding_completed?: boolean
   created_at: string
   approved_by: string | null
   approved_at: string | null
@@ -373,6 +374,10 @@ function enforceServerAdminInvariantsOnStore(store: AuthStoreData): AuthStoreDat
   for (const p of store.profiles) {
     const normalizedEmail = p.email.trim().toLowerCase()
     p.email = normalizedEmail
+    // Tài khoản cũ (chưa có trường onboarding_completed) mặc định là true (đã xem)
+    if (p.onboarding_completed === undefined) {
+      p.onboarding_completed = true
+    }
     if (normalizedEmail === adminEmail && p.email_verified) {
       p.role = 'admin'
       p.status = 'active'
@@ -727,6 +732,7 @@ export async function registerAccount(params: {
       status: initialStatus,
       email_verified: false,
       auth_provider: 'email',
+      onboarding_completed: false,
       created_at: now,
       approved_by: null,
       approved_at: null,
@@ -1165,6 +1171,7 @@ export async function loginOrLinkGoogleAccount(params: {
       status: initialStatus,
       email_verified: true,
       auth_provider: 'google',
+      onboarding_completed: false,
       created_at: now,
       approved_by: isTargetAdmin ? userId : 'GOOGLE_OAUTH_AUTO',
       approved_at: now,
@@ -1314,6 +1321,7 @@ export async function syncSupabaseUserSession(params: {
       status: initialStatus,
       email_verified: emailVerified,
       auth_provider: verifiedUser.provider || 'email',
+      onboarding_completed: false,
       created_at: now,
       approved_by: isTargetAdmin ? verifiedUser.id : null,
       approved_at: initialStatus === 'active' ? now : null,
@@ -1662,6 +1670,7 @@ export async function updateMyProfile(params: {
   phone?: string | null
   school?: string | null
   avatarUrl?: string | null
+  onboardingCompleted?: boolean
   req?: express.Request
 }): Promise<{
   success: boolean
@@ -1689,6 +1698,9 @@ export async function updateMyProfile(params: {
   if (params.avatarUrl !== undefined) {
     profile.avatar_url = params.avatarUrl ? params.avatarUrl.trim() : null
   }
+  if (typeof params.onboardingCompleted === 'boolean') {
+    profile.onboarding_completed = params.onboardingCompleted
+  }
 
   saveStoreToDisk(store)
   await syncProfileToPostgresIfAvailable(profile)
@@ -1701,6 +1713,7 @@ export async function updateMyProfile(params: {
       full_name: profile.full_name,
       phone: profile.phone,
       school: profile.school,
+      onboarding_completed: profile.onboarding_completed,
     },
     req: params.req,
   })
@@ -1709,6 +1722,29 @@ export async function updateMyProfile(params: {
     success: true,
     profile,
     message: 'Đã cập nhật thông tin hồ sơ cá nhân!',
+  }
+}
+
+export async function completeMyOnboarding(params: {
+  userId: string
+  req?: express.Request
+}): Promise<{
+  success: boolean
+  profile: UserProfileRecord
+  message: string
+}> {
+  const store = loadStoreFromDisk()
+  const profile = store.profiles.find((p) => p.id === params.userId)
+  if (!profile) {
+    throw new Error('Không tìm thấy hồ sơ tài khoản.')
+  }
+  profile.onboarding_completed = true
+  saveStoreToDisk(store)
+  await syncProfileToPostgresIfAvailable(profile)
+  return {
+    success: true,
+    profile,
+    message: 'Đã ghi nhận hoàn thành hướng dẫn sử dụng.',
   }
 }
 
@@ -2368,6 +2404,7 @@ export async function adminCreateTeacherAccount(params: {
     status,
     email_verified: true,
     auth_provider: 'email',
+    onboarding_completed: false,
     created_at: now,
     approved_by: status === 'active' ? admin.id : null,
     approved_at: status === 'active' ? now : null,

@@ -35,14 +35,16 @@ Tài liệu này hướng dẫn từng bước cụ thể cách sử dụng ứn
    * **Màu sắc**: Chọn màu đại diện để dễ phân biệt trên thời gian biểu.
 4. Bấm **"Thêm lớp"**.
 
-### 1.2. Thêm lịch học cố định hằng tuần cho lớp
-1. Bấm vào thẻ lớp vừa tạo để vào trang **Chi tiết lớp**.
-2. Chuyển sang tab **"Lịch học"**.
-3. Bấm **"+ Thêm lịch học cố định"**:
+### 1.2. Thêm lịch học cố định hằng tuần & Lịch học phát sinh cho lớp
+1. Bấm vào thẻ lớp vừa tạo để vào trang **Chi tiết lớp** (hoặc thao tác ngay trên thẻ lớp ở trang **Danh sách lớp**).
+2. Tại mục **"Lịch học cố định"**, bấm **"+ Thêm ca"**:
    * Chọn thứ trong tuần (vd Thứ 3, Thứ 7).
    * Chọn giờ bắt đầu và giờ kết thúc (vd `18:00` đến `19:30`).
    * Chọn ngày bắt đầu áp dụng.
-4. Bấm **"Thêm lịch"**. Lịch này sẽ tự động lặp lại hằng tuần trên Thời gian biểu.
+3. Tại mục **"Lịch học phát sinh"**, bấm **"+ Thêm buổi"** (hoặc nút **"Lịch học phát sinh"** trên thanh tiêu đề):
+   * Chọn lớp, ngày, giờ bắt đầu/kết thúc và ghi chú (không bắt buộc).
+   * Ô **"Học phí buổi này"** (không bắt buộc): nếu nhập số tiền thì buổi phát sinh dùng mức giá này thay cho giá mặc định của lớp; nếu để trống thì giữ nguyên giá mặc định của lớp.
+   * Có thể bấm **Điểm danh**, **Sửa** (biểu tượng bút chì) hoặc **Xóa** (biểu tượng thùng rác) cho từng buổi phát sinh bất cứ lúc nào.
 
 ### 1.3. Thêm học sinh nhanh bằng cách dán danh sách
 1. Trong trang Chi tiết lớp, tại tab **"Học sinh"**, bấm nút **"Dán danh sách"**.
@@ -183,5 +185,8 @@ Vào tab **"Cài đặt"**:
 6. **Quản lý ngày nghỉ lễ & Sao lưu dữ liệu (Backup & Restore)**:
    * Thêm ngày nghỉ lễ để tự động ẩn toàn bộ lịch dạy trong ngày đó.
    * Bấm **"Tải file sao lưu (.json)"** hoặc **"Khôi phục từ file JSON"** để bảo toàn toàn bộ dữ liệu lịch, điểm danh, giao dịch thu học phí và chốt tháng.
+7. **Xem lại Hướng dẫn sử dụng (Onboarding 6 bước)**:
+   * Khi mới tạo tài khoản và vào ứng dụng lần đầu, bảng **Hướng dẫn sử dụng (Bước 1/6 – 6/6)** sẽ tự động xuất hiện và làm nổi bật từng khu vực chức năng.
+   * Bất cứ lúc nào muốn xem lại từ đầu, thầy/cô chỉ cần bấm nút **"Hướng dẫn (?)"** ở góc phải thanh tiêu đề đầu trang, ở thanh menu bên trái hoặc ngay trong thẻ tài khoản tại trang **Cài đặt**.
 
 

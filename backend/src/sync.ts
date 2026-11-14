@@ -321,8 +321,8 @@ export async function pushUserState(userId: string, payload: SyncPayload): Promi
 
     await insertMany(
       client,
-      `INSERT INTO extra_sessions (id, class_id, date, start_time, end_time, note, makeup_for, user_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `INSERT INTO extra_sessions (id, class_id, date, start_time, end_time, note, makeup_for, custom_price, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       (payload.extraSessions || []).map((row) => [
         str(row.id),
         str(row.class_id),
@@ -331,6 +331,7 @@ export async function pushUserState(userId: string, payload: SyncPayload): Promi
         str(row.end_time),
         row.note ?? null,
         row.makeup_for ?? null,
+        row.custom_price == null || row.custom_price === '' ? null : num(row.custom_price),
         userId,
       ]),
     )

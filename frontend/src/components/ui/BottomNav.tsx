@@ -14,11 +14,11 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { cn } from '../../lib/utils'
 
 const TEACHER_ITEMS = [
-  { to: '/', label: 'Lịch', icon: CalendarDays },
-  { to: '/classes', label: 'Lớp', icon: BookOpen },
-  { to: '/fees', label: 'Học phí', icon: Wallet },
-  { to: '/profile', label: 'Hồ sơ', icon: User },
-  { to: '/settings', label: 'Cài đặt', icon: Settings },
+  { to: '/', label: 'Lịch', icon: CalendarDays, tourId: 'nav-schedule' },
+  { to: '/classes', label: 'Lớp', icon: BookOpen, tourId: 'nav-classes' },
+  { to: '/fees', label: 'Học phí', icon: Wallet, tourId: 'nav-fees' },
+  { to: '/profile', label: 'Hồ sơ', icon: User, tourId: 'nav-profile' },
+  { to: '/settings', label: 'Cài đặt', icon: Settings, tourId: 'nav-settings' },
 ]
 
 const ADMIN_ITEMS = [
@@ -94,11 +94,12 @@ export function BottomNav() {
                 </Link>
               )
             })
-          : TEACHER_ITEMS.map(({ to, label, icon: Icon }) => (
+          : TEACHER_ITEMS.map(({ to, label, icon: Icon, tourId }) => (
               <NavLink
                 key={to}
                 to={to}
                 end={to === '/'}
+                data-tour={tourId}
                 onClick={() => {
                   if (typeof navigator !== 'undefined' && navigator.vibrate) {
                     navigator.vibrate(6)

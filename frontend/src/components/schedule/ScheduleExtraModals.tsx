@@ -26,10 +26,12 @@ import {
   dateToWeekday,
   dateToStr,
   formatWeekHeader,
+  formatMoney,
 } from '../../lib/dateUtils'
 import { timeGroupLabel } from '../../lib/schoolPeriods'
 import { cn } from '../../lib/utils'
-import type { CalendarSession } from '../../types'
+import { AddExtraSessionModal } from './SessionActionModals'
+import type { CalendarSession, ExtraSession } from '../../types'
 import toast from 'react-hot-toast'
 
 // 1. Google Calendar-style Quick Add Dialog / Popover
@@ -62,6 +64,7 @@ export function QuickAddModal({
   const [date, setDate] = useState(initialDate)
   const [startTime, setStartTime] = useState(initialStart)
   const [endTime, setEndTime] = useState(initialEnd)
+  const [customPrice, setCustomPrice] = useState('')
   const [note, setNote] = useState('')
 
   useEffect(() => {
@@ -69,6 +72,7 @@ export function QuickAddModal({
       setDate(initialDate)
       setStartTime(initialStart)
       setEndTime(initialEnd)
+      setCustomPrice('')
       setNote('')
       if (!classId && classes[0]?.id) setClassId(classes[0].id)
     }
@@ -111,11 +115,14 @@ export function QuickAddModal({
       toast.error('Vui lòng chọn lớp dạy thêm')
       return
     }
+    const parsedCustomPrice =
+      customPrice.trim() === '' ? null : Math.max(0, Math.round(Number(customPrice)))
     addExtraSession({
       class_id: classId,
       date,
       start_time: startTime,
       end_time: endTime,
+      custom_price: parsedCustomPrice,
       note: note.trim() || null,
       makeup_for: null,
     })
@@ -135,7 +142,7 @@ export function QuickAddModal({
           >
             {classes.map(c => (
               <option key={c.id} value={c.id}>
-                {c.name} {c.location ? `(${c.location})` : ''}
+                {c.name} {c.location ? `(${c.location})` : ''} — {formatMoney(c.price)}/buổi
               </option>
             ))}
           </select>
@@ -172,7 +179,24 @@ export function QuickAddModal({
         </div>
 
         <div>
-          <label className="label">Ghi chú nhanh</label>
+          <label className="label">Học phí buổi này (VNĐ, không bắt buộc)</label>
+          <input
+            type="number"
+            min={0}
+            step={1000}
+            className="input"
+            placeholder={
+              selectedClass
+                ? `Để trống = giá mặc định (${formatMoney(selectedClass.price)})`
+                : 'Để trống = giữ nguyên giá mặc định của lớp'
+            }
+            value={customPrice}
+            onChange={e => setCustomPrice(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="label">Ghi chú (không bắt buộc)</label>
           <input
             className="input"
             placeholder="Vd: Ôn tập chương 2, tăng cường..."
@@ -242,14 +266,21 @@ export function SessionDetailSheet({
   onSwitchToSchoolGrid: () => void
   onAddGuestStudent?: (session: CalendarSession) => void
 }) {
-  const { sessionGuests, students, classes, deleteSessionGuest } = useAppStore()
+  const { sessionGuests, students, classes, extraSessions, deleteSessionGuest } = useAppStore()
   const [drawerMode, setDrawerMode] = useState(false)
+  const [editingExtra, setEditingExtra] = useState<ExtraSession | null>(null)
 
   useEffect(() => {
     setDrawerMode(false)
+    setEditingExtra(null)
   }, [session?.id])
 
   if (!session) return null
+
+  const extraRecord = session.id.startsWith('extra-')
+    ? extraSessions.find(e => e.id === session.id.replace('extra-', '')) || null
+    : null
+  const sessionClass = session.class_id ? classes.find(c => c.id === session.class_id) : undefined
 
   const guestsForSession = session.class_id
     ? sessionGuests.filter(
@@ -325,6 +356,23 @@ export function SessionDetailSheet({
             <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-300">
               <Users size={14} className="text-gray-400 shrink-0" />
               <span>Sĩ số đang học: {session.student_count} học sinh</span>
+            </div>
+          )}
+
+          {extraRecord && (
+            <div className="flex items-center justify-between pt-1 border-t border-gray-200/60 dark:border-[#37393F] text-gray-700 dark:text-gray-200">
+              <span>Học phí buổi phát sinh:</span>
+              <span className="font-bold text-purple-700 dark:text-purple-300">
+                {extraRecord.custom_price != null
+                  ? `${formatMoney(extraRecord.custom_price)}/buổi (Giá riêng buổi này)`
+                  : `${formatMoney(sessionClass?.price || 0)}/buổi (Giá mặc định của lớp)`}
+              </span>
+            </div>
+          )}
+
+          {session.note && isExtra && (
+            <div className="text-purple-700 dark:text-purple-300 pt-1 border-t border-gray-200/60 dark:border-[#37393F]">
+              <strong>Ghi chú:</strong> {session.note}
             </div>
           )}
 
@@ -465,20 +513,34 @@ export function SessionDetailSheet({
             </button>
           )}
 
-          {/* Delete Extra Session */}
+          {/* Edit / Delete Extra Session */}
           {session.id.startsWith('extra-') && (
-            <button
-              type="button"
-              onClick={() => {
-                const extraId = session.id.replace('extra-', '')
-                onDeleteExtra(extraId)
-                onClose()
-              }}
-              className="btn-danger w-full flex items-center justify-center gap-1.5 text-xs"
-            >
-              <Trash2 size={14} />
-              Xóa buổi phát sinh này
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              {extraRecord && (
+                <button
+                  type="button"
+                  onClick={() => setEditingExtra(extraRecord)}
+                  className="btn-secondary flex items-center justify-center gap-1.5 text-xs"
+                >
+                  ✏️ Sửa buổi phát sinh
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const extraId = session.id.replace('extra-', '')
+                  onDeleteExtra(extraId)
+                  onClose()
+                }}
+                className={cn(
+                  'btn-danger flex items-center justify-center gap-1.5 text-xs',
+                  !extraRecord && 'col-span-2'
+                )}
+              >
+                <Trash2 size={14} />
+                Xóa buổi phát sinh
+              </button>
+            </div>
           )}
 
           {/* School / Duty Edit Shortcut */}
@@ -508,6 +570,15 @@ export function SessionDetailSheet({
           )}
         </div>
       </div>
+
+      <AddExtraSessionModal
+        open={!!editingExtra}
+        onClose={() => {
+          setEditingExtra(null)
+          onClose()
+        }}
+        editSession={editingExtra}
+      />
     </Modal>
   )
 }

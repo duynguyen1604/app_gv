@@ -121,7 +121,8 @@
     font-family: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, sans-serif;
     /* Mobile base font size >= 15px, Desktop >= 14px */
     font-size: 15px;
-    overflow-x: hidden;
+    overflow-x: clip;
+    overflow-anchor: auto;
   }
 
   @media (min-width: 768px) {
@@ -135,7 +136,8 @@
     color: var(--text-primary);
     font-family: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, sans-serif;
     line-height: 1.5;
-    overflow-x: hidden;
+    overflow-x: clip;
+    overflow-anchor: auto;
     margin: 0;
   }
 

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { PublicAuthConfig, UserProfile } from '../types'
 import {
+  apiCompleteOnboarding,
   apiGetMe,
   apiGetPublicAuthConfig,
   apiLogout,
@@ -27,12 +28,15 @@ interface AuthState {
   pendingVerificationEmail: string | null
   pendingDevVerifyUrl: string | null
   pendingAdminApprovalCount: number
+  onboardingOpen: boolean
 
   initializeAuth: () => Promise<void>
   setRememberMe: (val: boolean) => void
   setPendingVerification: (email: string | null, devUrl?: string | null) => void
   setPendingAdminApprovalCount: (count: number) => void
   updateProfileState: (profile: UserProfile) => Promise<void>
+  openOnboardingTour: () => void
+  closeOnboardingTour: () => Promise<void>
   setAuthenticatedSession: (params: {
     profile: UserProfile
     sessionToken: string
@@ -56,6 +60,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   pendingVerificationEmail: null,
   pendingDevVerifyUrl: null,
   pendingAdminApprovalCount: 0,
+  onboardingOpen: false,
 
   setRememberMe: (val) => {
     setRememberMePreference(val)
@@ -86,6 +91,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  openOnboardingTour: () => {
+    set({ onboardingOpen: true })
+  },
+
+  closeOnboardingTour: async () => {
+    const { profile, sessionToken, expiresAt, rememberMe } = get()
+    set({ onboardingOpen: false })
+
+    if (profile && profile.onboarding_completed === false) {
+      const updatedProfile: UserProfile = {
+        ...profile,
+        onboarding_completed: true,
+      }
+      set({ profile: updatedProfile })
+      if (sessionToken && expiresAt) {
+        await persistAuthSession({
+          profile: updatedProfile,
+          sessionToken,
+          expiresAt,
+          rememberMe,
+        })
+      }
+      if (sessionToken) {
+        const res = await apiCompleteOnboarding(sessionToken)
+        if (res.success && res.profile) {
+          set({ profile: res.profile })
+          if (expiresAt) {
+            await persistAuthSession({
+              profile: res.profile,
+              sessionToken,
+              expiresAt,
+              rememberMe,
+            })
+          }
+        }
+      }
+    }
+  },
+
   setAuthenticatedSession: async ({
     profile,
     sessionToken,
@@ -107,6 +151,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Sync user ID with main app store
     useAppStore.getState().setUserId(profile.id)
 
+    const shouldAutoOpenOnboarding =
+      profile.status === 'active' && profile.onboarding_completed === false
+
     set({
       profile,
       sessionToken,
@@ -115,6 +162,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       sessionExpiredMidWork: false,
       isInitialized: true,
       isLoading: false,
+      onboardingOpen: shouldAutoOpenOnboarding ? true : get().onboardingOpen,
     })
 
     // Section 4.2: If user just re-authenticated after a mid-work session expiration,
@@ -277,6 +325,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       sessionExpiredMidWork: false,
       pendingVerificationEmail: null,
       pendingDevVerifyUrl: null,
+      onboardingOpen: false,
     })
   },
 }))

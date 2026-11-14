@@ -15,20 +15,22 @@ import {
   Ticket,
   History,
   Sliders,
+  HelpCircle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAppStore } from '../../store/useAppStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { apiGetAdminOverview } from '../../lib/supabase'
 import { BottomNav } from '../ui/BottomNav'
+import { OnboardingTour } from '../onboarding/OnboardingTour'
 import { cn } from '../../lib/utils'
 
 const TEACHER_NAV_ITEMS = [
-  { to: '/', label: 'Lịch dạy', shortLabel: 'Lịch', icon: CalendarDays },
-  { to: '/classes', label: 'Lớp & Điểm danh', shortLabel: 'Lớp', icon: BookOpen },
-  { to: '/fees', label: 'Học phí & Thu nhập', shortLabel: 'Học phí', icon: Wallet },
-  { to: '/profile', label: 'Hồ sơ cá nhân', shortLabel: 'Hồ sơ', icon: User },
-  { to: '/settings', label: 'Cài đặt hệ thống', shortLabel: 'Cài đặt', icon: Settings },
+  { to: '/', label: 'Lịch dạy', shortLabel: 'Lịch', icon: CalendarDays, tourId: 'nav-schedule' },
+  { to: '/classes', label: 'Lớp & Điểm danh', shortLabel: 'Lớp', icon: BookOpen, tourId: 'nav-classes' },
+  { to: '/fees', label: 'Học phí & Thu nhập', shortLabel: 'Học phí', icon: Wallet, tourId: 'nav-fees' },
+  { to: '/profile', label: 'Hồ sơ cá nhân', shortLabel: 'Hồ sơ', icon: User, tourId: 'nav-profile' },
+  { to: '/settings', label: 'Cài đặt hệ thống', shortLabel: 'Cài đặt', icon: Settings, tourId: 'nav-settings' },
 ]
 
 const ADMIN_PRIMARY_ITEMS = [
@@ -70,10 +72,10 @@ const ADMIN_PRIMARY_ITEMS = [
 ]
 
 const ADMIN_PERSONAL_ITEMS = [
-  { to: '/schedule', label: 'Lịch dạy cá nhân', shortLabel: 'Lịch', icon: CalendarDays },
-  { to: '/classes', label: 'Lớp dạy cá nhân', shortLabel: 'Lớp', icon: BookOpen },
-  { to: '/fees', label: 'Học phí cá nhân', shortLabel: 'Học phí', icon: Wallet },
-  { to: '/settings', label: 'Cài đặt lịch dạy', shortLabel: 'Cài đặt', icon: Settings },
+  { to: '/schedule', label: 'Lịch dạy cá nhân', shortLabel: 'Lịch', icon: CalendarDays, tourId: 'nav-schedule' },
+  { to: '/classes', label: 'Lớp dạy cá nhân', shortLabel: 'Lớp', icon: BookOpen, tourId: 'nav-classes' },
+  { to: '/fees', label: 'Học phí cá nhân', shortLabel: 'Học phí', icon: Wallet, tourId: 'nav-fees' },
+  { to: '/settings', label: 'Cài đặt lịch dạy', shortLabel: 'Cài đặt', icon: Settings, tourId: 'nav-settings' },
 ]
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -84,6 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     sessionToken,
     pendingAdminApprovalCount,
     setPendingAdminApprovalCount,
+    openOnboardingTour,
     logout,
   } = useAuthStore()
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
@@ -121,14 +124,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Left Navigation Sidebar */}
       <aside
         aria-label="Thanh bên điều hướng chính"
+        style={{ overflowAnchor: 'none' }}
         className={cn(
-          'hidden tablet:flex flex-col shrink-0 bg-white dark:bg-[#1E1F22] border-r border-gray-200/80 dark:border-[#2D2F34] select-none z-30 no-print transition-all duration-200',
+          'hidden tablet:flex flex-col shrink-0 tablet:sticky tablet:top-0 tablet:h-screen bg-white dark:bg-[#1E1F22] border-r border-gray-200/80 dark:border-[#2D2F34] select-none z-30 no-print transition-all duration-200',
           'tablet:w-[68px]',
           !isSchedulePage && 'desktop:w-[248px]'
         )}
       >
         {/* Brand Logo */}
         <div
+          data-tour="app-brand"
           className={cn(
             'h-16 flex items-center gap-3 border-b border-gray-100 dark:border-[#2D2F34] px-3',
             !isSchedulePage ? 'desktop:px-5' : 'justify-center'
@@ -219,11 +224,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                   Lịch dạy cá nhân (Tùy chọn)
                 </div>
               )}
-              {ADMIN_PERSONAL_ITEMS.map(({ to, label, shortLabel, icon: Icon }) => (
+              {ADMIN_PERSONAL_ITEMS.map(({ to, label, shortLabel, icon: Icon, tourId }) => (
                 <NavLink
                   key={to}
                   to={to}
                   title={label}
+                  data-tour={tourId}
                   className={({ isActive }) =>
                     cn(
                       'flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-all duration-150 group relative',
@@ -261,12 +267,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               ))}
             </>
           ) : (
-            TEACHER_NAV_ITEMS.map(({ to, label, shortLabel, icon: Icon }) => (
+            TEACHER_NAV_ITEMS.map(({ to, label, shortLabel, icon: Icon, tourId }) => (
               <NavLink
                 key={to}
                 to={to}
                 end={to === '/'}
                 title={label}
+                data-tour={tourId}
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 group relative',
@@ -310,8 +317,25 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         </nav>
 
-        {/* Bottom Actions: Theme Toggle & Profile Card */}
+        {/* Bottom Actions: Onboarding Guide, Theme Toggle & Profile Card */}
         <div className="p-2.5 border-t border-gray-100 dark:border-[#2D2F34] flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={openOnboardingTour}
+            data-tour="btn-onboarding-help"
+            title="Xem lại hướng dẫn sử dụng"
+            aria-label="Hướng dẫn sử dụng"
+            className={cn(
+              'flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-[#1A73E8] dark:text-[#8AB4F8] bg-blue-50/70 hover:bg-blue-100/80 dark:bg-[#1A73E8]/15 dark:hover:bg-[#1A73E8]/25 transition-colors',
+              isSchedulePage ? 'justify-center' : 'justify-center desktop:justify-start'
+            )}
+          >
+            <HelpCircle size={18} className="shrink-0" />
+            {!isSchedulePage && (
+              <span className="hidden desktop:inline truncate">Hướng dẫn sử dụng</span>
+            )}
+          </button>
+
           <button
             onClick={toggleDarkMode}
             title={darkMode ? 'Chuyển sang chế độ Sáng' : 'Chuyển sang chế độ Tối'}
@@ -397,6 +421,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Mobile Bottom Navigation (< 768px) */}
       <BottomNav />
+
+      {/* Interactive Step-by-Step Onboarding Tour */}
+      <OnboardingTour />
 
       {confirmLogoutOpen && (
         <div

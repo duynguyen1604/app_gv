@@ -104,8 +104,11 @@ CREATE TABLE IF NOT EXISTS extra_sessions (
     end_time TEXT NOT NULL,
     note TEXT,
     makeup_for TEXT,
+    custom_price INTEGER,
     user_id TEXT NOT NULL DEFAULT 'local'
 );
+
+ALTER TABLE extra_sessions ADD COLUMN IF NOT EXISTS custom_price INTEGER;
 
 CREATE TABLE IF NOT EXISTS school_periods (
     id TEXT PRIMARY KEY,

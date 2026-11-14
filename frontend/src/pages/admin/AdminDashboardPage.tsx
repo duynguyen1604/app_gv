@@ -325,7 +325,7 @@ export function AdminDashboardPage() {
   }, [fetchOverview])
 
   const setTab = (tab: AdminTab) => {
-    setSearchParams({ tab })
+    setSearchParams({ tab }, { replace: true, preventScrollReset: true })
   }
 
   const pendingProfiles = useMemo(

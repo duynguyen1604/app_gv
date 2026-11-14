@@ -1,7 +1,8 @@
 import { ReactNode, useState, useEffect, useRef } from 'react'
-import { ChevronLeft, Search, X, BookOpen, Users, Calendar } from 'lucide-react'
+import { ChevronLeft, Search, X, BookOpen, Users, HelpCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../store/useAppStore'
+import { useAuthStore } from '../../store/useAuthStore'
 import { cn } from '../../lib/utils'
 
 interface TopBarProps {
@@ -25,15 +26,18 @@ export function TopBar({
 }: TopBarProps) {
   const navigate = useNavigate()
   const { classes, students } = useAppStore()
-  const [compact, setCompact] = useState(false)
+  const openOnboardingTour = useAuthStore((s) => s.openOnboardingTour)
+  const [scrolled, setScrolled] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
 
-  // Shrink mobile header on scroll down
+  // Add subtle shadow on scroll WITHOUT changing header height/padding/font-size or unmounting subtitle
+  // (Prevents scroll-jump / jitter oscillation at scrollY ~ 24px on SettingsPage & ClassDetailPage)
   useEffect(() => {
     const onScroll = () => {
-      setCompact(window.scrollY > 24)
+      const next = window.scrollY > 12
+      setScrolled((prev) => (prev === next ? prev : next))
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
@@ -67,9 +71,10 @@ export function TopBar({
 
   return (
     <header
+      style={{ overflowAnchor: 'none' }}
       className={cn(
-        'sticky top-0 z-30 bg-white/95 dark:bg-[#1E1F22]/95 backdrop-blur-md border-b border-gray-200/80 dark:border-[#2D2F34] px-4 tablet:px-6 transition-all duration-150 no-print',
-        compact ? 'py-2 tablet:py-3 shadow-xs' : 'py-3 tablet:py-3.5',
+        'sticky top-0 z-30 bg-white/95 dark:bg-[#1E1F22]/95 backdrop-blur-md border-b border-gray-200/80 dark:border-[#2D2F34] px-4 tablet:px-6 py-3 tablet:py-3.5 transition-shadow duration-150 no-print',
+        scrolled && 'shadow-xs',
         className
       )}
     >
@@ -86,16 +91,11 @@ export function TopBar({
               <ChevronLeft size={22} />
             </button>
           )}
-          <div className="min-w-0 flex-1">
-            <h1
-              className={cn(
-                'font-bold text-gray-900 dark:text-gray-100 leading-tight truncate transition-all duration-150',
-                compact ? 'text-base tablet:text-lg' : 'text-lg tablet:text-xl'
-              )}
-            >
+          <div className="min-w-0 flex-1" data-tour="app-brand">
+            <h1 className="font-bold text-gray-900 dark:text-gray-100 leading-tight truncate text-lg tablet:text-xl">
               {title}
             </h1>
-            {subtitle && !compact && (
+            {subtitle && (
               <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{subtitle}</p>
             )}
           </div>
@@ -210,8 +210,21 @@ export function TopBar({
           </div>
         )}
 
-        {/* Right Action Slot */}
-        {rightContent && <div className="flex items-center gap-2 shrink-0">{rightContent}</div>}
+        {/* Right Action Slot + Fixed Help / Onboarding Button */}
+        <div className="flex items-center gap-2 shrink-0">
+          {rightContent}
+          <button
+            type="button"
+            onClick={openOnboardingTour}
+            data-tour="btn-onboarding-help"
+            title="Xem hướng dẫn sử dụng"
+            aria-label="Hướng dẫn sử dụng"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[#1A73E8] dark:text-[#8AB4F8] bg-blue-50/80 hover:bg-blue-100 dark:bg-[#1A73E8]/15 dark:hover:bg-[#1A73E8]/25 border border-blue-200/70 dark:border-blue-800/50 transition-colors"
+          >
+            <HelpCircle size={15} className="shrink-0" />
+            <span className="hidden sm:inline">Hướng dẫn</span>
+          </button>
+        </div>
       </div>
     </header>
   )

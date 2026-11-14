@@ -4,6 +4,54 @@ Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa b�
 
 ---
 
+## [2026-11-14] - Bổ Sung Tính Năng "Hướng Dẫn Sử Dụng" (Interactive Step-by-Step Onboarding Tour) Lưu Trạng Thái Theo Tài Khoản Trên Server
+
+### ➕ Đã thêm & Nâng cấp (Added & Changed)
+- **Lưu trạng thái `onboarding_completed` theo tài khoản người dùng trên Server / Database ([`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts), [`backend/src/auth.ts`](file:///d:/app_gv/backend/src/auth.ts), [`backend/src/server.ts`](file:///d:/app_gv/backend/src/server.ts), [`frontend/src/types/index.ts`](file:///d:/app_gv/frontend/src/types/index.ts), [`frontend/src/lib/supabase.ts`](file:///d:/app_gv/frontend/src/lib/supabase.ts), [`frontend/src/store/useAuthStore.ts`](file:///d:/app_gv/frontend/src/store/useAuthStore.ts))**:
+  * Bổ sung trường `onboarding_completed?: boolean` vào `UserProfile` / `StoredUser` / `UserProfileRecord` và API `POST /api/profile/onboarding-complete` (cùng hỗ trợ cập nhật qua `PUT /api/profile/me`).
+  * Tài khoản mới tạo từ bây giờ (qua cả đăng ký Email/Mật khẩu lẫn đăng nhập Google lần đầu) được gán `onboarding_completed: false` để hướng dẫn tự động hiện đúng 1 lần khi vào ứng dụng lần đầu.
+  * Tài khoản cũ đã có sẵn trước khi có tính năng này mặc định `onboarding_completed: true` (đánh dấu là đã xem để không làm phiền, nhưng vẫn có thể bấm nút **"Hướng dẫn"** để xem bất cứ lúc nào).
+  * Khi người dùng hoàn thành hoặc bấm **"Bỏ qua"**, nút **X**, phím **Esc**, hay bấm ra vùng nền bên ngoài, trạng thái `onboarding_completed = true` được lưu trực tiếp lên server/database theo tài khoản (đổi điện thoại hoặc đăng nhập trên máy tính khác cũng không bị hiện lại).
+- **Giao diện Hướng dẫn từng bước có Spotlight & Tooltip thông minh ([`frontend/src/components/onboarding/OnboardingTour.tsx`](file:///d:/app_gv/frontend/src/components/onboarding/OnboardingTour.tsx))**:
+  * Gồm 6 bước ngắn gọn, dễ hiểu bằng tiếng Việt kèm khung sáng làm nổi bật đúng phần giao diện đang giải thích (`spotlight` + `tooltip`):
+    1. Chào mừng và giới thiệu ứng dụng.
+    2. Cách thêm lớp học và học sinh (`Lớp & Điểm danh`).
+    3. Cách xếp lịch dạy và tạo **Lịch học phát sinh** có học phí riêng (`Lịch dạy`).
+    4. Cách điểm danh nhanh mỗi buổi học (`Có mặt / Vắng / Có phép`).
+    5. Cách xem học phí, lọc theo lớp và ghi nhận thu tiền (`Học phí`).
+    6. Cách vào `Cài đặt` và nơi bấm nút **"Hướng dẫn (?)"** để mở lại bất cứ lúc nào.
+  * Đầy đủ điều khiển: chỉ báo tiến độ `"Bước X/6"`, chấm tiến độ, nút `"Quay lại"`, `"Tiếp tục"`, bước cuối là `"Bắt đầu dùng"`, nút `"Bỏ qua"` luôn hiện rõ ở mọi bước, nút đóng `X`, phím `Esc` và đóng khi bấm ra ngoài.
+  * Tự động tính toán vị trí thẻ hướng dẫn trên cả điện thoại màn hình nhỏ và máy tính để không bao giờ tràn màn hình hoặc đè lên phần giao diện đang được giải thích; hỗ trợ chế độ Sáng/Tối và tôn trọng `prefers-reduced-motion`.
+- **Nút cố định mở lại Hướng dẫn bất cứ lúc nào ([`frontend/src/components/ui/TopBar.tsx`](file:///d:/app_gv/frontend/src/components/ui/TopBar.tsx), [`frontend/src/components/layout/AppShell.tsx`](file:///d:/app_gv/frontend/src/components/layout/AppShell.tsx), [`frontend/src/components/ui/BottomNav.tsx`](file:///d:/app_gv/frontend/src/components/ui/BottomNav.tsx), [`frontend/src/pages/SettingsPage.tsx`](file:///d:/app_gv/frontend/src/pages/SettingsPage.tsx))**:
+  * Thêm nút **"Hướng dẫn"** (biểu tượng dấu hỏi `?`) trên thanh `TopBar` (mọi trang trên điện thoại & máy tính), trên thanh điều hướng trái (`AppShell`) và trong trang `Cài đặt` (`SettingsPage`).
+  * Bấm vào sẽ chạy lại toàn bộ hướng dẫn từ Bước 1/6 mà không làm thay đổi trạng thái `onboarding_completed = true` đã lưu.
+
+---
+
+## [2026-11-14] - Sửa Lỗi Giật Cuộn Trang (Scroll Jump), Bổ Sung "Lịch Học Phát Sinh" Có Tùy Chọn Học Phí Riêng & Bộ Lọc Theo Lớp Ở Trang Học Phí
+
+### 🛠️ Đã sửa & Bổ sung (Fixed & Added)
+- **1. Sửa triệt để lỗi giật vị trí cuộn (Scroll Jump) trên trang "Cài đặt hệ thống" của người dùng và "Cài đặt lịch dạy" của Admin ([`frontend/src/components/ui/TopBar.tsx`](file:///d:/app_gv/frontend/src/components/ui/TopBar.tsx), [`frontend/src/index.css`](file:///d:/app_gv/frontend/src/index.css), [`frontend/src/pages/SettingsPage.tsx`](file:///d:/app_gv/frontend/src/pages/SettingsPage.tsx), [`frontend/src/components/layout/AppShell.tsx`](file:///d:/app_gv/frontend/src/components/layout/AppShell.tsx), [`frontend/src/pages/admin/AdminDashboardPage.tsx`](file:///d:/app_gv/frontend/src/pages/admin/AdminDashboardPage.tsx), [`frontend/src/pages/ClassDetailPage.tsx`](file:///d:/app_gv/frontend/src/pages/ClassDetailPage.tsx))**:
+  * **Nguyên nhân gốc**:
+    1. `TopBar.tsx` trước đây gắn sự kiện `window.scrollY > 24` để bật trạng thái `compact`, làm ẩn dòng `subtitle` và thu nhỏ padding/font-size (~28px). Khi cuộn qua mốc `24px`, chiều cao trang giảm đột ngột kéo `scrollY` tụt ngược xuống `< 24px`, kích hoạt lại `compact = false` và tạo vòng lặp giật vị trí cuộn liên tục, đồng thời làm lệch vị trí `top` của thanh danh mục `sticky` bên dưới trên cả điện thoại và máy tính.
+    2. `index.css` đặt `overflow-x: hidden` đồng thời trên cả `html` và `body`, gây xung đột vùng cuộn (dual scroll container) và làm hỏng cơ chế neo vị trí cuộn tự nhiên (`overflow-anchor`) của trình duyệt khi dữ liệu thay đổi.
+    3. `AdminDashboardPage.tsx` gọi `setSearchParams({ tab })` không có `preventScrollReset: true`.
+  * **Giải pháp**:
+    - Giữ chiều cao `TopBar` ổn định tuyệt đối khi cuộn (chỉ đổi đổ bóng `shadow-xs`), gắn `overflowAnchor: 'none'` cho các thanh `sticky` (`TopBar`, thanh danh mục `SettingsPage`, sidebar `AppShell`, tab bar `ClassDetailPage`).
+    - Chuyển `overflow-x: hidden` trên `html, body` sang `overflow-x: clip; overflow-anchor: auto;`.
+    - Bổ sung `{ replace: true, preventScrollReset: true }` khi chuyển tab trong `AdminDashboardPage.tsx` và hiển thị tiêu đề `"Cài đặt lịch dạy"` khi Admin mở trang `/settings`.
+- **2. Lớp học: Thêm chức năng "Lịch học phát sinh" kèm ô "Học phí buổi này", hỗ trợ Sửa & Xóa ([`frontend/src/types/index.ts`](file:///d:/app_gv/frontend/src/types/index.ts), [`frontend/src/store/useAppStore.ts`](file:///d:/app_gv/frontend/src/store/useAppStore.ts), [`frontend/src/lib/conflictDetector.ts`](file:///d:/app_gv/frontend/src/lib/conflictDetector.ts), [`frontend/src/lib/debtEngine.ts`](file:///d:/app_gv/frontend/src/lib/debtEngine.ts), [`frontend/src/components/schedule/SessionActionModals.tsx`](file:///d:/app_gv/frontend/src/components/schedule/SessionActionModals.tsx), [`frontend/src/components/schedule/ScheduleExtraModals.tsx`](file:///d:/app_gv/frontend/src/components/schedule/ScheduleExtraModals.tsx), [`frontend/src/pages/ClassesPage.tsx`](file:///d:/app_gv/frontend/src/pages/ClassesPage.tsx), [`frontend/src/pages/ClassDetailPage.tsx`](file:///d:/app_gv/frontend/src/pages/ClassDetailPage.tsx), [`backend/sql/init.sql`](file:///d:/app_gv/backend/sql/init.sql), [`backend/src/sync.ts`](file:///d:/app_gv/backend/src/sync.ts))**:
+  * Bổ sung trường tùy chọn `custom_price?: number | null` (**"Học phí buổi này"**) vào `ExtraSession`:
+    - Nếu nhập số tiền: buổi học phát sinh dùng mức giá này thay cho giá mặc định của lớp.
+    - Nếu để trống: giữ nguyên giá mặc định của lớp.
+  * Thêm mục quản lý **"Lịch học phát sinh"** trực tiếp trên từng thẻ lớp tại trang Danh sách lớp (`ClassesPage.tsx`) và trong trang Chi tiết lớp (`ClassDetailPage.tsx`), cũng như trên hộp chi tiết buổi học ở trang Lịch dạy (`ScheduleExtraModals.tsx`).
+  * Hỗ trợ **Tạo mới**, **Điểm danh**, **Sửa** (tự động đồng bộ bản ghi điểm danh và ghi chú buổi học nếu đổi ngày/giờ/lớp) và **Xóa** (tự động dọn sạch điểm danh của buổi phát sinh đã xóa) kèm tính học phí chính xác theo mức giá của buổi phát sinh trong `debtEngine.ts`.
+- **3. Học phí: Nâng cấp bộ lọc theo lớp kết hợp cùng bộ lọc tháng ([`frontend/src/pages/FeesPage.tsx`](file:///d:/app_gv/frontend/src/pages/FeesPage.tsx), [`frontend/src/lib/debtEngine.ts`](file:///d:/app_gv/frontend/src/lib/debtEngine.ts))**:
+  * Nâng cấp `buildFeeRowFromProfile(profile, selectedMonth, filterClassId)` để khi chọn một lớp cụ thể trên trang Học phí (hoặc chọn `"Tất cả lớp"`), danh sách học sinh và toàn bộ các số tổng (**Phải thu**, **Đã thu**, **Còn thiếu**) chỉ tính riêng cho lớp đã chọn (kể cả với học sinh học nhiều lớp hoặc chuyển lớp trong tháng).
+  * Hiển thị bộ lọc chọn lớp đồng bộ cùng bộ lọc tháng trên cả thanh điều khiển đầu trang và thanh lọc nhanh của bảng dữ liệu.
+
+---
+
 ## [2026-11-14] - Chuyển Đổi Kiến Trúc Deploy 100% Lên Cloudflare (Cloudflare Pages + Pages Functions `/api/*` + Cloudflare D1 Edge Database — Không Bao Giờ Tắt Server / 0ms Cold Start)
 
 ### 🚀 Đã thêm & Nâng cấp (Added & Changed)

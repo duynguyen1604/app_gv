@@ -53,7 +53,14 @@ import {
   LongTermExtraEnrollmentModal,
   ClassTransferModal,
 } from '../components/students/StudentLifecycleModals'
-import type { Student, AttendanceStatus, ScheduleRule, PaymentTransaction } from '../types'
+import { AddExtraSessionModal } from '../components/schedule/SessionActionModals'
+import type {
+  Student,
+  AttendanceStatus,
+  ScheduleRule,
+  PaymentTransaction,
+  ExtraSession,
+} from '../types'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
@@ -553,6 +560,7 @@ export function ClassDetailPage() {
     deleteStudent,
     addScheduleRule,
     deleteScheduleRule,
+    deleteExtraSession,
     holidays,
     paymentTransactions,
     monthLocks,
@@ -567,6 +575,8 @@ export function ClassDetailPage() {
       ? 'guests'
       : searchParams.get('tab') === 'students'
       ? 'students'
+      : searchParams.get('tab') === 'schedule'
+      ? 'schedule'
       : 'attendance'
 
   const [activeTab, setActiveTab] = useState<'attendance' | 'students' | 'guests' | 'schedule'>(
@@ -578,6 +588,9 @@ export function ClassDetailPage() {
   const [deleteStudentId, setDeleteStudentId] = useState<string | null>(null)
   const [showAddRule, setShowAddRule] = useState(false)
   const [deleteRuleId, setDeleteRuleId] = useState<string | null>(null)
+  const [showExtraModal, setShowExtraModal] = useState(false)
+  const [editingExtraSession, setEditingExtraSession] = useState<ExtraSession | null>(null)
+  const [deleteExtraId, setDeleteExtraId] = useState<string | null>(null)
   const [deleteGuestId, setDeleteGuestId] = useState<string | null>(null)
   const [focusedRowIndex, setFocusedRowIndex] = useState<number>(0)
   const [recordPaymentStudentId, setRecordPaymentStudentId] = useState<string | null>(null)
@@ -667,8 +680,15 @@ export function ClassDetailPage() {
     () => scheduleRules.filter((r) => r.class_id === classId),
     [scheduleRules, classId]
   )
+  const classExtras = useMemo(
+    () =>
+      extraSessions
+        .filter((e) => e.class_id === classId)
+        .sort((a, b) => b.date.localeCompare(a.date) || b.start_time.localeCompare(a.start_time)),
+    [extraSessions, classId]
+  )
 
-  // Compute all sessions for this class (last 45 days + next 7 days)
+  // Compute all sessions for this class (last 45 days + next 7 days + all extraSessions)
   const sessions = useMemo(() => {
     if (!classId) return []
     const result: SessionItem[] = []
@@ -708,13 +728,14 @@ export function ClassDetailPage() {
     const toStr = format(toDate, 'yyyy-MM-dd')
 
     extraSessions
-      .filter((e) => e.class_id === classId && e.date >= fromStr && e.date <= toStr)
+      .filter((e) => e.class_id === classId)
       .forEach((e) => {
+        const priceTag = e.custom_price != null ? ` (${formatMoney(e.custom_price)})` : ''
         result.push({
           date: e.date,
           start_time: e.start_time,
           end_time: e.end_time,
-          label: `${e.makeup_for ? 'Dạy bù' : 'Phát sinh'}: ${formatDateShort(e.date)}`,
+          label: `${e.makeup_for ? 'Dạy bù' : 'Phát sinh'}${priceTag}: ${formatDateShort(e.date)}`,
         })
       })
 
@@ -748,6 +769,12 @@ export function ClassDetailPage() {
   }, [classId, scheduleRules, extraSessions, sessionExceptions])
 
   const [selectedSession, setSelectedSession] = useState<SessionItem | null>(() => {
+    const paramSession = searchParams.get('session')
+    if (paramSession) {
+      const [sDate, sStart] = paramSession.split('|')
+      const match = sessions.find((s) => s.date === sDate && s.start_time === sStart)
+      if (match) return match
+    }
     const paramDate = searchParams.get('date')
     const paramStart = searchParams.get('start')
     if (paramDate && paramStart) {
@@ -1042,6 +1069,16 @@ export function ClassDetailPage() {
               style={{ backgroundColor: cls.color }}
             />
             <button
+              type="button"
+              onClick={() => {
+                setEditingExtraSession(null)
+                setShowExtraModal(true)
+              }}
+              className="btn-secondary py-1.5 px-3 text-xs hidden sm:inline-flex text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/70 bg-purple-50/70 dark:bg-purple-950/30"
+            >
+              <Sparkles size={14} className="text-purple-600" /> + Lịch phát sinh
+            </button>
+            <button
               onClick={() =>
                 setGuestModalConfig({
                   open: true,
@@ -1065,7 +1102,10 @@ export function ClassDetailPage() {
       />
 
       {/* Mobile & Tablet Navigation Tabs (< 1200px) */}
-      <div className="desktop:hidden sticky top-[52px] tablet:top-[64px] z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800">
+      <div
+        style={{ overflowAnchor: 'none' }}
+        className="desktop:hidden sticky top-[64px] z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800"
+      >
         <div className="flex max-w-3xl mx-auto overflow-x-auto no-scrollbar">
           {[
             { key: 'attendance', label: 'Điểm danh', count: null },
@@ -1075,7 +1115,7 @@ export function ClassDetailPage() {
               label: 'Học ghép',
               count: incomingGuests.length + outgoingGuests.length + incomingLongTermExtras.length,
             },
-            { key: 'schedule', label: 'Lịch & Thống kê', count: rules.length },
+            { key: 'schedule', label: 'Lịch & Thống kê', count: rules.length + classExtras.length },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -2243,6 +2283,98 @@ export function ClassDetailPage() {
                 </div>
               )}
             </div>
+
+            {/* Extra Sessions Card ("Lịch học phát sinh") */}
+            <div className="card p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Sparkles size={16} className="text-purple-600 dark:text-purple-400" />
+                  Lịch học phát sinh ({classExtras.length})
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingExtraSession(null)
+                    setShowExtraModal(true)
+                  }}
+                  className="btn-secondary py-1 px-2.5 text-xs text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/70 bg-purple-50/70 dark:bg-purple-950/30"
+                >
+                  <Plus size={14} /> Thêm buổi
+                </button>
+              </div>
+
+              {classExtras.length === 0 ? (
+                <p className="text-xs text-slate-400 py-3 text-center">
+                  Chưa có buổi học phát sinh nào cho lớp này.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {classExtras.map((ex) => {
+                    const effectivePrice =
+                      ex.custom_price != null ? ex.custom_price : cls.price
+                    return (
+                      <div
+                        key={ex.id}
+                        className="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/25 border border-purple-200/70 dark:border-purple-800/50 flex items-start justify-between gap-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                              {formatDate(ex.date)} · {ex.start_time}–{ex.end_time}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200">
+                              {formatMoney(effectivePrice)}/buổi
+                              {ex.custom_price != null ? ' (Giá riêng)' : ' (Giá lớp)'}
+                            </span>
+                          </div>
+                          {ex.note && (
+                            <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                              {ex.note}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const found = sessions.find(
+                                (s) => s.date === ex.date && s.start_time === ex.start_time
+                              )
+                              if (found) {
+                                setSelectedSession(found)
+                                setActiveTab('attendance')
+                              }
+                            }}
+                            className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            <CheckCheck size={13} /> Điểm danh buổi này
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingExtraSession(ex)
+                              setShowExtraModal(true)
+                            }}
+                            className="btn-icon p-1.5 text-slate-400 hover:text-purple-600 dark:hover:text-purple-300"
+                            title="Sửa buổi phát sinh"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteExtraId(ex.id)}
+                            className="btn-icon p-1.5 text-slate-400 hover:text-red-500"
+                            title="Xóa buổi phát sinh"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2311,6 +2443,31 @@ export function ClassDetailPage() {
         title="Xóa ca học cố định"
         message="Xóa lịch học cố định này? Các buổi đã dời hoặc hủy trước đó vẫn được giữ nguyên."
         confirmLabel="Xóa lịch"
+      />
+
+      <AddExtraSessionModal
+        open={showExtraModal}
+        onClose={() => {
+          setShowExtraModal(false)
+          setEditingExtraSession(null)
+        }}
+        presetClassId={classId}
+        editSession={editingExtraSession}
+      />
+
+      <ConfirmDialog
+        open={!!deleteExtraId}
+        onClose={() => setDeleteExtraId(null)}
+        onConfirm={() => {
+          if (deleteExtraId) {
+            deleteExtraSession(deleteExtraId)
+            toast.success('Đã xóa buổi học phát sinh')
+          }
+          setDeleteExtraId(null)
+        }}
+        title="Xóa buổi học phát sinh"
+        message="Bạn có chắc muốn xóa buổi học phát sinh này? Dữ liệu điểm danh của buổi phát sinh này cũng sẽ được gỡ bỏ."
+        confirmLabel="Xóa buổi phát sinh"
       />
 
       <ConfirmDialog

@@ -33,6 +33,7 @@ import {
   Car,
   LogOut,
   UserCheck,
+  HelpCircle,
 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { useAuthStore } from '../store/useAuthStore'
@@ -105,7 +106,7 @@ function buildSchoolPeriodsFromPreset(
 type SettingsCategory = 'school_periods' | 'gmail' | 'gcal_ai' | 'appearance' | 'backup'
 
 function AccountSummaryBanner() {
-  const { profile, logout } = useAuthStore()
+  const { profile, logout, openOnboardingTour } = useAuthStore()
   const [confirmLogout, setConfirmLogout] = useState(false)
 
   if (!profile) return null
@@ -150,7 +151,16 @@ function AccountSummaryBanner() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={openOnboardingTour}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-50 hover:bg-blue-100 dark:bg-[#1A73E8]/15 dark:hover:bg-[#1A73E8]/25 text-[#1A73E8] dark:text-[#8AB4F8] border border-blue-200/70 dark:border-blue-800/60 transition-colors"
+          >
+            <HelpCircle size={15} />
+            <span>Hướng dẫn sử dụng</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setConfirmLogout(true)}
@@ -214,6 +224,7 @@ export function SettingsPage() {
     sessionNotes,
     userId,
   } = useAppStore()
+  const profile = useAuthStore((s) => s.profile)
 
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>('school_periods')
   const [cloudStatus, setCloudStatus] = useState<'checking' | 'online' | 'offline'>('checking')
@@ -668,12 +679,15 @@ export function SettingsPage() {
   return (
     <div className="min-h-screen pb-24 desktop:pb-10">
       <TopBar
-        title="Cài đặt hệ thống"
+        title={profile?.role === 'admin' ? 'Cài đặt lịch dạy' : 'Cài đặt hệ thống'}
         subtitle="Tùy chỉnh giờ tiết trường, thông báo Gmail, giao diện và sao lưu"
       />
 
       {/* Mobile Horizontal Category Pills (< 768px) */}
-      <div className="tablet:hidden sticky top-[52px] z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-3 py-2 overflow-x-auto no-scrollbar">
+      <div
+        style={{ overflowAnchor: 'none' }}
+        className="tablet:hidden sticky top-[68px] z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-3 py-2 overflow-x-auto no-scrollbar"
+      >
         <div className="flex items-center gap-1.5 min-w-max">
           {CATEGORIES.map((cat) => {
             const Icon = cat.icon
@@ -681,9 +695,10 @@ export function SettingsPage() {
             return (
               <button
                 key={cat.key}
+                type="button"
                 onClick={() => setActiveCategory(cat.key)}
                 className={cn(
-                  'px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all',
+                  'px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors',
                   active
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
@@ -704,7 +719,10 @@ export function SettingsPage() {
 
         <div className="grid grid-cols-1 tablet:grid-cols-12 gap-6 items-start">
           {/* Left Column: Category Navigation (4/12 on Tablet, 3/12 on Desktop) */}
-          <aside className="hidden tablet:flex tablet:col-span-4 desktop:col-span-3 flex-col gap-1.5 sticky top-[84px]">
+          <aside
+            style={{ overflowAnchor: 'none' }}
+            className="hidden tablet:flex tablet:col-span-4 desktop:col-span-3 flex-col gap-1.5 sticky top-[84px]"
+          >
             <div className="card p-2 flex flex-col gap-1">
               {CATEGORIES.map((cat) => {
                 const Icon = cat.icon
@@ -712,6 +730,7 @@ export function SettingsPage() {
                 return (
                   <button
                     key={cat.key}
+                    type="button"
                     onClick={() => setActiveCategory(cat.key)}
                     className={cn(
                       'w-full text-left p-3 rounded-xl transition-all flex items-start gap-3',
