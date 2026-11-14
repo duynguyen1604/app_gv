@@ -57,6 +57,8 @@ async function ensureD1Table(db?: D1Database): Promise<void> {
         )`
       )
       .run()
+    // Tự động dọn sạch dữ liệu cũ trước đợt Reset DB v3_clean
+    await db.prepare(`DELETE FROM kv_store WHERE key NOT LIKE 'v3_clean_%'`).run()
     d1Initialized = true
   } catch (err) {
     console.warn('[Cloudflare D1] Auto-init table warning:', err)
@@ -246,7 +248,7 @@ interface AuthStoreData {
   appSettings: AppSettingsRecord
 }
 
-const AUTH_STORE_KEY = 'auth_store_v2'
+const AUTH_STORE_KEY = 'v3_clean_auth_store'
 
 function normalizeEmail(email: string): string {
   return String(email || '').trim().toLowerCase()
@@ -544,8 +546,8 @@ function emptyServerState(): ServerState {
 }
 
 function syncKeyForUser(userId: string): string {
-  const clean = String(userId || 'default-teacher-id').trim() || 'default-teacher-id'
-  return `sync_state:${clean}`
+  const clean = String(userId || '').trim()
+  return `v3_clean_sync_state:${clean}`
 }
 
 // ============================================================================
@@ -1600,20 +1602,24 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
       }
     }
 
-    // 10. CLOUD SYNC (/api/sync) - LƯU & ĐỒNG BỘ LỊCH DẠY TRÊN CLOUDFLARE D1
+    // 10. CLOUD SYNC (/api/sync) - LƯU & ĐỒNG BỘ LỊCH DẠY RIÊNG BIỆT CHO TỪNG TÀI KHOẢN TRÊN CLOUDFLARE D1
     if (path === '/api/sync') {
       if (method === 'GET') {
-        const userId = url.searchParams.get('user_id') || 'default-teacher-id'
+        const userId = (url.searchParams.get('user_id') || '').trim()
+        if (!userId || userId === 'local') {
+          return jsonResponse(emptyServerState())
+        }
         const state =
-          (await kvGet<ServerState>(env.DB, syncKeyForUser(userId))) ||
-          (await kvGet<ServerState>(env.DB, syncKeyForUser('default-teacher-id'))) ||
-          emptyServerState()
+          (await kvGet<ServerState>(env.DB, syncKeyForUser(userId))) || emptyServerState()
         return jsonResponse(state)
       }
 
       if (method === 'PUT' || method === 'POST') {
         const body = await readJsonBody(req)
-        const userId = String(body.user_id || 'default-teacher-id')
+        const userId = String(body.user_id || '').trim()
+        if (!userId || userId === 'local') {
+          return jsonResponse({ ok: false, error: 'Thiếu user_id hợp lệ' }, 400)
+        }
         const stateToSave: ServerState = {
           classes: Array.isArray(body.classes) ? body.classes : [],
           students: Array.isArray(body.students) ? body.students : [],
@@ -1646,9 +1652,6 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         }
 
         await kvSet(env.DB, syncKeyForUser(userId), stateToSave)
-        if (userId !== 'default-teacher-id') {
-          await kvSet(env.DB, syncKeyForUser('default-teacher-id'), stateToSave)
-        }
         return jsonResponse({
           ok: true,
           synced_at: new Date().toISOString(),

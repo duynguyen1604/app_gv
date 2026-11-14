@@ -40,6 +40,7 @@ import {
   INITIAL_SCHOOL_SCHEDULE,
   INITIAL_SCHOOL_PERIODS,
   INITIAL_HOLIDAYS,
+  isDefaultSeededTeacherId,
 } from './initialData'
 import {
   addDaysToDateStr,
@@ -331,7 +332,36 @@ export const useAppStore = create<AppState>()(
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
 
       userId: 'local',
-      setUserId: (id) => set({ userId: id || 'local' }),
+      setUserId: (id) => {
+        const nextId = id || 'local'
+        const prevId = get().userId
+        if (prevId === nextId) return
+        const isSeeded = isDefaultSeededTeacherId(nextId)
+        set({
+          userId: nextId,
+          classes: isSeeded ? INITIAL_CLASSES : [],
+          students: isSeeded ? INITIAL_STUDENTS : [],
+          studentEnrollments: isSeeded ? INITIAL_STUDENT_ENROLLMENTS : [],
+          studentStatusHistory: isSeeded ? INITIAL_STUDENT_STATUS_HISTORY : [],
+          sessionGuests: [],
+          scheduleRules: isSeeded ? INITIAL_SCHEDULE_RULES : [],
+          sessionExceptions: [],
+          extraSessions: [],
+          schoolPeriods: INITIAL_SCHOOL_PERIODS,
+          schoolSchedule: isSeeded ? INITIAL_SCHOOL_SCHEDULE : [],
+          schoolWeekConfigs: {},
+          holidays: INITIAL_HOLIDAYS,
+          sessionNotes: [],
+          attendance: [],
+          payments: [],
+          paymentTransactions: [],
+          monthLocks: [],
+          changeLogs: [],
+          calendarEventMap: [],
+          calendarSyncLogs: [],
+          notificationLogs: [],
+        })
+      },
 
       calendarViewMode: null,
       setCalendarViewMode: (mode) => set({ calendarViewMode: mode }),
@@ -345,8 +375,8 @@ export const useAppStore = create<AppState>()(
       globalSearchQuery: '',
       setGlobalSearchQuery: (q) => set({ globalSearchQuery: q }),
 
-      // Classes
-      classes: INITIAL_CLASSES,
+      // Classes (Tài khoản mới khởi tạo trống hoàn toàn; chỉ tài khoản mặc định giaovien@lichday.vn mới nạp sẵn 14 lớp)
+      classes: [],
       addClass: (data) => {
         const newClass: Class = {
           ...data,
@@ -375,9 +405,9 @@ export const useAppStore = create<AppState>()(
         })),
 
       // Students
-      students: INITIAL_STUDENTS,
-      studentEnrollments: INITIAL_STUDENT_ENROLLMENTS,
-      studentStatusHistory: INITIAL_STUDENT_STATUS_HISTORY,
+      students: [],
+      studentEnrollments: [],
+      studentStatusHistory: [],
       sessionGuests: [],
 
       addStudent: (data) => {
@@ -897,7 +927,7 @@ export const useAppStore = create<AppState>()(
       },
 
       // Schedule Rules
-      scheduleRules: INITIAL_SCHEDULE_RULES,
+      scheduleRules: [],
       addScheduleRule: (data) => {
         const rule: ScheduleRule = { ...data, id: generateId(), user_id: get().userId }
         set((s) => ({ scheduleRules: [...s.scheduleRules, rule] }))
@@ -1055,7 +1085,7 @@ export const useAppStore = create<AppState>()(
         })),
 
       // School Schedule & Per-Week Config (Group B1, B2, B3)
-      schoolSchedule: INITIAL_SCHOOL_SCHEDULE,
+      schoolSchedule: [],
       schoolWeekConfigs: {},
 
       setSchoolWeekConfig: (weekStart, config) => {
@@ -1713,20 +1743,22 @@ export const useAppStore = create<AppState>()(
             if (typeof window !== 'undefined') {
               window.localStorage.setItem(seedKey, DATA_SEED_VERSION)
             }
+            const targetUserId = raw.userId || currentState.userId || 'local'
+            const isSeeded = isDefaultSeededTeacherId(targetUserId)
             return {
               ...currentState,
               darkMode: Boolean(raw.darkMode ?? currentState.darkMode),
-              userId: raw.userId || currentState.userId || 'local',
-              classes: INITIAL_CLASSES,
-              students: INITIAL_STUDENTS,
-              studentEnrollments: INITIAL_STUDENT_ENROLLMENTS,
-              studentStatusHistory: INITIAL_STUDENT_STATUS_HISTORY,
+              userId: targetUserId,
+              classes: isSeeded ? INITIAL_CLASSES : [],
+              students: isSeeded ? INITIAL_STUDENTS : [],
+              studentEnrollments: isSeeded ? INITIAL_STUDENT_ENROLLMENTS : [],
+              studentStatusHistory: isSeeded ? INITIAL_STUDENT_STATUS_HISTORY : [],
               sessionGuests: [],
-              scheduleRules: INITIAL_SCHEDULE_RULES,
+              scheduleRules: isSeeded ? INITIAL_SCHEDULE_RULES : [],
               sessionExceptions: [],
               extraSessions: [],
               schoolPeriods: INITIAL_SCHOOL_PERIODS,
-              schoolSchedule: INITIAL_SCHOOL_SCHEDULE,
+              schoolSchedule: isSeeded ? INITIAL_SCHOOL_SCHEDULE : [],
               schoolWeekConfigs: {},
               holidays: INITIAL_HOLIDAYS,
               sessionNotes: [],
@@ -1760,9 +1792,12 @@ export const useAppStore = create<AppState>()(
               : currentState.schoolPeriods || DEFAULT_SCHOOL_PERIODS
 
           const currentMonday = getMondayOfDateStr(new Date().toISOString().slice(0, 10))
+          const isSeeded = isDefaultSeededTeacherId(merged.userId)
           const rawSchoolSchedule = Array.isArray(raw.schoolSchedule)
             ? raw.schoolSchedule
-            : currentState.schoolSchedule || []
+            : isSeeded
+              ? INITIAL_SCHOOL_SCHEDULE
+              : []
 
           let migratedSchedule = migrateLegacySchoolSchedule(
             rawSchoolSchedule,
@@ -1789,11 +1824,21 @@ export const useAppStore = create<AppState>()(
             }
           }
 
-          const classes = Array.isArray(raw.classes) ? raw.classes : currentState.classes || INITIAL_CLASSES
-          const students = Array.isArray(raw.students) ? raw.students : currentState.students || INITIAL_STUDENTS
+          const classes = Array.isArray(raw.classes)
+            ? raw.classes
+            : isSeeded
+              ? INITIAL_CLASSES
+              : []
+          const students = Array.isArray(raw.students)
+            ? raw.students
+            : isSeeded
+              ? INITIAL_STUDENTS
+              : []
           const scheduleRules = Array.isArray(raw.scheduleRules)
             ? raw.scheduleRules
-            : currentState.scheduleRules || INITIAL_SCHEDULE_RULES
+            : isSeeded
+              ? INITIAL_SCHEDULE_RULES
+              : []
           const holidays = Array.isArray(raw.holidays) ? raw.holidays : currentState.holidays || INITIAL_HOLIDAYS
           const attendance = Array.isArray(raw.attendance) ? raw.attendance : []
           const extraSessionsList = Array.isArray(raw.extraSessions) ? raw.extraSessions : []

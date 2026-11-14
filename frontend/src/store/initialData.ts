@@ -12,7 +12,13 @@ import { addDaysToDateStr, DEFAULT_SCHOOL_PERIODS, getMondayOfDateStr } from '..
 
 export const INITIAL_SCHOOL_PERIODS: SchoolPeriod[] = DEFAULT_SCHOOL_PERIODS
 
-export const DATA_SEED_VERSION = '2026-van-schedule-v1'
+export const DATA_SEED_VERSION = '2026-van-schedule-v3-isolated'
+
+export const DEFAULT_TEACHER_USER_ID = '00000000-0000-0000-0000-000000000002'
+
+export function isDefaultSeededTeacherId(userId?: string | null): boolean {
+  return userId === DEFAULT_TEACHER_USER_ID || userId === 'usr_default_teacher'
+}
 
 const CURRENT_MONDAY = getMondayOfDateStr(new Date().toISOString().slice(0, 10))
 const NOW_ISO = new Date().toISOString()

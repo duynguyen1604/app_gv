@@ -85,18 +85,17 @@ export default function App() {
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined
-    let ready = false
 
-    void bootstrapCloudSync().then(() => {
-      ready = true
-    })
-
-    const unsubscribe = useAppStore.subscribe(() => {
-      if (!ready) return
+    const unsubscribe = useAppStore.subscribe((state, prevState) => {
+      // Không tự động push khi chưa đăng nhập ('local') hoặc khi vừa chuyển đổi tài khoản (setUserId)
+      if (!state.userId || state.userId === 'local') return
+      if (state.userId !== prevState.userId) return
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => {
-        const userId = useAppStore.getState().userId
-        void pushServerState(userId).catch(() => undefined)
+        const currentUserId = useAppStore.getState().userId
+        if (currentUserId && currentUserId !== 'local') {
+          void pushServerState(currentUserId).catch(() => undefined)
+        }
       }, 1500)
     })
 

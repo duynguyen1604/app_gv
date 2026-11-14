@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS, useAppStore } from '../store/useAppStore'
+import { isDefaultSeededTeacherId } from '../store/initialData'
 import { DEFAULT_SCHOOL_PERIODS, migrateLegacySchoolSchedule } from './schoolPeriods'
 import { computeSessionsForDate } from './conflictDetector'
 import { migrateLegacyPaymentsToTransactions } from './debtEngine'
@@ -114,7 +115,9 @@ export function applyServerStateToStore(remote: ServerState) {
   )
   const migratedTx = migrateLegacyPaymentsToTransactions({
     legacyPayments: remote.payments || [],
-    existingTransactions: remote.paymentTransactions || s.paymentTransactions || [],
+    existingTransactions: Array.isArray(remote.paymentTransactions)
+      ? remote.paymentTransactions
+      : [],
     students: remote.students || [],
     classes: remote.classes || [],
     scheduleRules: remote.scheduleRules || [],
@@ -125,7 +128,7 @@ export function applyServerStateToStore(remote: ServerState) {
     userId,
   })
 
-  const normalizedWeekConfigs: Record<string, SchoolWeekConfig> = { ...(s.schoolWeekConfigs || {}) }
+  const normalizedWeekConfigs: Record<string, SchoolWeekConfig> = {}
   if (Array.isArray(remote.schoolWeekConfigs)) {
     for (const cfg of remote.schoolWeekConfigs) {
       if (cfg && cfg.week_start) {
@@ -139,9 +142,11 @@ export function applyServerStateToStore(remote: ServerState) {
   useAppStore.setState({
     classes: remote.classes || [],
     students: remote.students || [],
-    studentEnrollments: remote.studentEnrollments || s.studentEnrollments || [],
-    studentStatusHistory: remote.studentStatusHistory || s.studentStatusHistory || [],
-    sessionGuests: remote.sessionGuests || s.sessionGuests || [],
+    studentEnrollments: Array.isArray(remote.studentEnrollments) ? remote.studentEnrollments : [],
+    studentStatusHistory: Array.isArray(remote.studentStatusHistory)
+      ? remote.studentStatusHistory
+      : [],
+    sessionGuests: Array.isArray(remote.sessionGuests) ? remote.sessionGuests : [],
     scheduleRules: remote.scheduleRules || [],
     sessionExceptions: remote.sessionExceptions || [],
     extraSessions: remote.extraSessions || [],
@@ -153,16 +158,17 @@ export function applyServerStateToStore(remote: ServerState) {
     attendance: remote.attendance || [],
     payments: remote.payments || [],
     paymentTransactions: migratedTx,
-    monthLocks: remote.monthLocks || s.monthLocks || [],
-    changeLogs: remote.changeLogs || s.changeLogs || [],
-    calendarEventMap: remote.calendarEventMap || s.calendarEventMap || [],
-    calendarSyncLogs: remote.calendarSyncLogs || s.calendarSyncLogs || [],
+    monthLocks: Array.isArray(remote.monthLocks) ? remote.monthLocks : [],
+    changeLogs: Array.isArray(remote.changeLogs) ? remote.changeLogs : [],
+    calendarEventMap: Array.isArray(remote.calendarEventMap) ? remote.calendarEventMap : [],
+    calendarSyncLogs: Array.isArray(remote.calendarSyncLogs) ? remote.calendarSyncLogs : [],
     settings: { ...DEFAULT_SETTINGS, ...(remote.settings || s.settings) },
     notificationLogs: remote.notificationLogs || [],
   })
 }
 
 export async function pushServerState(userId: string): Promise<void> {
+  if (!userId || userId === 'local') return
   const res = await fetch(`${API_BASE}/api/sync`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -207,8 +213,17 @@ function isOldSampleServerState(state: ServerState): boolean {
 
 export async function bootstrapCloudSync(): Promise<'pulled' | 'pushed' | 'offline'> {
   const userId = useAppStore.getState().userId
+  if (!userId || userId === 'local') {
+    return 'offline'
+  }
   try {
     const remote = await pullServerState(userId)
+    // Mọi tài khoản mới tạo (không phải tài khoản mặc định giaovien@lichday.vn)
+    // đều lấy đúng dữ liệu của chính tài khoản đó trên server (rỗng hoàn toàn nếu mới tạo)
+    if (!isDefaultSeededTeacherId(userId)) {
+      applyServerStateToStore(remote)
+      return 'pulled'
+    }
     if (serverHasData(remote) && !isOldSampleServerState(remote)) {
       applyServerStateToStore(remote)
       return 'pulled'
