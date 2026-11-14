@@ -2,6 +2,17 @@
 
 Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa bỏ) trong dự án Quản lý Lịch dạy Giáo viên được ghi lại chi tiết tại tệp này theo định dạng chuẩn [Keep a Changelog](https://keepachangelog.com/).
 
+## [2026-11-14] - Fix Quyền Admin Cấu Hình Từ Cloudflare Pages Không Tạo Được Mã Mời Giáo Viên
+
+### 🐛 Đã sửa & Kiểm thử (Fixed & Tested)
+- **Tự động nâng quyền `admin` cho `ADMIN_EMAIL` & vá dữ liệu `invites` cũ ([`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts))**:
+  * Khi tài khoản đã từng đăng nhập trước đó với quyền `teacher` rồi mới được cấu hình làm `ADMIN_EMAIL` trên Cloudflare Pages (kể cả khi không đặt `DEFAULT_ADMIN_PASSWORD`), `loadAuthStore` và luồng đăng nhập Google tự động cập nhật `role = 'admin'`, `status = 'active'`, `email_verified = true`.
+  * Chuẩn hóa các mảng `sessions`, `tokens`, `invites`, `auditLogs` trong `loadAuthStore` khi đọc dữ liệu cũ từ D1/KV để tránh lỗi `store.invites` bị `undefined` khi tạo mã mời (`POST /api/admin/invites`).
+  * Kiểm tra trùng mã mời tùy chỉnh (`customCode`) trả về thông báo lỗi `400` rõ ràng thay vì tạo trùng.
+  * Đã chạy kiểm thử thực tế với `handleApiRequest` cho cả 2 trường hợp (Admin tạo mới từ `ADMIN_EMAIL + DEFAULT_ADMIN_PASSWORD` và Admin được nâng quyền từ `ADMIN_EMAIL` qua Google OAuth) đều tạo/thu hồi/xóa mã mời thành công.
+
+---
+
 ## [2026-11-14] - Xóa Bỏ Toàn Bộ Tài Khoản & Mật Khẩu Admin Mặc Định Cố Định Trong Mã Nguồn
 
 ### 🔒 Bảo mật (Security)

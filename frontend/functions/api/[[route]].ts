@@ -365,6 +365,11 @@ async function loadAuthStore(env: Env): Promise<AuthStoreData> {
       },
     }
     dirty = true
+  } else {
+    if (!Array.isArray(store.sessions)) { store.sessions = []; dirty = true }
+    if (!Array.isArray(store.tokens)) { store.tokens = []; dirty = true }
+    if (!Array.isArray(store.invites)) { store.invites = []; dirty = true }
+    if (!Array.isArray(store.auditLogs)) { store.auditLogs = []; dirty = true }
   }
 
   // Xóa tài khoản mẫu chờ duyệt (choduyet@lichday.vn) và tài khoản admin mặc định cũ (admin@lichday.vn) nếu không cấu hình lại bằng env
@@ -392,10 +397,24 @@ async function loadAuthStore(env: Env): Promise<AuthStoreData> {
     }
   }
 
-  // 1. Đảm bảo tài khoản Admin (chỉ khởi tạo tự động khi có đủ ADMIN_EMAIL và DEFAULT_ADMIN_PASSWORD trong env)
+  // 1. Đảm bảo tài khoản Admin (tự động cấp quyền admin cho ADMIN_EMAIL nếu đã tồn tại, hoặc khởi tạo mới nếu có thêm DEFAULT_ADMIN_PASSWORD)
   let adminUser = adminEmail
     ? store.users.find((u) => normalizeEmail(u.email) === adminEmail)
     : undefined
+  if (adminEmail && adminUser) {
+    if (adminUser.role !== 'admin') {
+      adminUser.role = 'admin'
+      dirty = true
+    }
+    if (adminUser.status !== 'active') {
+      adminUser.status = 'active'
+      dirty = true
+    }
+    if (!adminUser.email_verified) {
+      adminUser.email_verified = true
+      dirty = true
+    }
+  }
   if (adminEmail && adminPassword) {
     if (!adminUser) {
       adminUser = {
@@ -1098,6 +1117,9 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           linkedExisting = user.auth_provider === 'email'
           user.auth_provider = user.auth_provider === 'email' ? 'both' : 'google'
           user.email_verified = true
+          if (isAdminEmail) {
+            user.role = 'admin'
+          }
           if (user.status !== 'locked') {
             user.status = 'active' // Đăng nhập bằng Google tự động duyệt active
           }
@@ -1179,6 +1201,9 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
         linkedExisting = user.auth_provider === 'email'
         user.auth_provider = user.auth_provider === 'email' ? 'both' : 'google'
         user.email_verified = true
+        if (isAdminEmail) {
+          user.role = 'admin'
+        }
         if (user.status !== 'locked') {
           user.status = 'active' // Đăng nhập bằng Google tự động duyệt active
         }
@@ -1925,6 +1950,13 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
           String(body.customCode || body.custom_code || '')
             .trim()
             .toUpperCase() || `GV-${randomHex(3).toUpperCase()}`
+        if (!Array.isArray(store.invites)) store.invites = []
+        if (store.invites.some((i) => !i.revoked && i.code.toUpperCase() === code)) {
+          return jsonResponse(
+            { success: false, error: `Mã mời "${code}" đã tồn tại. Vui lòng chọn mã khác.` },
+            400
+          )
+        }
         const days = Number(body.expiresInDays ?? body.expires_in_days ?? 0)
         const invite: InviteRecord = {
           id: generateId('inv'),
