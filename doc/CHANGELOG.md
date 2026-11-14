@@ -9,6 +9,7 @@ Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa b�
   * Xóa bỏ hoàn toàn các chuỗi fallback cố định (`admin@lichday.vn`, `Admin123456`, `giaovien@lichday.vn`, `Giaovien123`).
   * Tài khoản Admin/mẫu chỉ được khởi tạo tự động nếu người vận hành cấu hình đầy đủ qua biến môi trường (`ADMIN_EMAIL` + `DEFAULT_ADMIN_PASSWORD`, hoặc `DEFAULT_TEACHER_EMAIL` + `DEFAULT_TEACHER_PASSWORD`) trên Cloudflare Pages.
   * API `GET /api/profile/me` chỉ trả về `adminEmailConfigured` khi người gọi đang là `admin`, tránh lộ email quản trị cho tài khoản giáo viên.
+  * Tự động dọn xóa tài khoản admin mặc định cũ (`admin@lichday.vn`) và các phiên đăng nhập của nó trong `loadAuthStore` nếu `ADMIN_EMAIL` không còn đặt là `admin@lichday.vn`.
 
 ---
 

@@ -367,10 +367,22 @@ async function loadAuthStore(env: Env): Promise<AuthStoreData> {
     dirty = true
   }
 
-  // Xóa tài khoản mẫu chờ duyệt (choduyet@lichday.vn) nếu có
+  // Xóa tài khoản mẫu chờ duyệt (choduyet@lichday.vn) và tài khoản admin mặc định cũ (admin@lichday.vn) nếu không cấu hình lại bằng env
   const beforeLen = store.users.length
-  store.users = store.users.filter((u) => normalizeEmail(u.email) !== 'choduyet@lichday.vn')
-  if (store.users.length !== beforeLen) dirty = true
+  const legacyAdminIds = new Set(
+    store.users
+      .filter(
+        (u) =>
+          normalizeEmail(u.email) === 'choduyet@lichday.vn' ||
+          (adminEmail !== 'admin@lichday.vn' && normalizeEmail(u.email) === 'admin@lichday.vn')
+      )
+      .map((u) => u.id)
+  )
+  if (legacyAdminIds.size > 0) {
+    store.users = store.users.filter((u) => !legacyAdminIds.has(u.id))
+    store.sessions = store.sessions.filter((s) => !legacyAdminIds.has(s.user_id))
+    if (store.users.length !== beforeLen) dirty = true
+  }
 
   // Chuẩn hóa status cũ ('approved' -> 'active')
   for (const u of store.users) {
