@@ -287,6 +287,37 @@ interface AuthStoreData {
 }
 
 const AUTH_STORE_KEY = 'v3_clean_auth_store'
+const SUPPORT_TICKETS_KEY = 'v3_clean_support_tickets'
+
+interface SupportTicketMessage {
+  id: string
+  sender_role: 'user' | 'admin'
+  sender_name: string
+  text: string
+  created_at: string
+}
+
+interface SupportTicketRecord {
+  id: string
+  user_id: string
+  user_email: string
+  user_name: string
+  category: 'support' | 'complaint' | 'bug' | 'account'
+  subject: string
+  status: 'open' | 'replied' | 'resolved'
+  messages: SupportTicketMessage[]
+  created_at: string
+  updated_at: string
+}
+
+async function loadSupportTickets(env: Env): Promise<SupportTicketRecord[]> {
+  const list = await kvGet<SupportTicketRecord[]>(env.DB, SUPPORT_TICKETS_KEY)
+  return Array.isArray(list) ? list : []
+}
+
+async function saveSupportTickets(env: Env, tickets: SupportTicketRecord[]): Promise<void> {
+  await kvSet(env.DB, SUPPORT_TICKETS_KEY, tickets.slice(0, 500))
+}
 
 function normalizeEmail(email: string): string {
   return String(email || '').trim().toLowerCase()
@@ -995,7 +1026,8 @@ NHIỆM VỤ DUY NHẤT:
   6. Cài đặt (/settings): Chỉnh giờ tiết trường S1-S5/C1-C5, bật "Thông báo Gmail" (nhập email + giờ nhận, gửi thử), đồng bộ Google Calendar (.ics).
   7. Hướng dẫn từng bước: Bấm nút "Hướng dẫn (?)" trên thanh trên cùng hoặc trong Cài đặt để xem lại hướng dẫn chỉ từng nút bấm.
   8. Hồ sơ (/profile): Sửa thông tin cá nhân hoặc đổi mật khẩu của chính mình.
-  9. Cổng Quản trị (/admin, chỉ dành cho Admin): Duyệt/khóa tài khoản giáo viên, tab "Mã mời Giáo viên" để tạo mã mời, xem Nhật ký kiểm toán (lưu 30 ngày gần nhất).
+  9. Liên hệ Admin / Khiếu nại / Hỗ trợ: Bấm sang tab "Liên hệ Admin" ngay trên đầu hộp chat này để gửi đơn hỗ trợ, khiếu nại, báo lỗi hoặc chat 2 chiều trực tiếp với Quản trị viên.
+  10. Cổng Quản trị (/admin, chỉ dành cho Admin): Duyệt/khóa tài khoản giáo viên, tab "Mã mời Giáo viên" để tạo mã mời, tab "Hỗ trợ & Khiếu nại" để trả lời giáo viên, xem Nhật ký kiểm toán (lưu 30 ngày gần nhất).
 
 QUY TẮC BẢO MẬT & PHẠM VI BẮT BUỘC:
 - TUYỆT ĐỐI KHÔNG trả lời các câu hỏi ngoài phạm vi phần mềm Lịch Dạy GV (như viết code, giải bài tập, nấu ăn, thời tiết, tin tức, chính trị, chứng khoán, giải trí...). Nếu bị hỏi ngoài luồng, hãy từ chối lịch sự và mời người dùng hỏi về cách sử dụng app.
@@ -1114,6 +1146,15 @@ function buildRuleBasedHelpReply(message: string, role: string, currentPath: str
       'Để cập nhật thông tin hoặc **Đổi mật khẩu của bạn**:',
       '1. Bấm vào tên/avatar của bạn hoặc vào mục **Hồ sơ**.',
       '2. Tại đây bạn có thể sửa họ tên, trường học, số điện thoại hoặc vào phần **Đổi mật khẩu** để đặt mật khẩu mới (tối thiểu 8 ký tự gồm chữ và số).',
+    ].join('\n')
+  }
+
+  if (/(liên hệ admin|gặp admin|nhắn admin|gửi admin|khiếu nại|phản ánh|báo lỗi|gửi đơn|hỗ trợ kỹ thuật|hỗ trợ từ admin)/.test(q)) {
+    return [
+      'Để **liên hệ trực tiếp với Admin** hoặc **gửi đơn khiếu nại / hỗ trợ**:',
+      '1. Bấm sang tab **Liên hệ Admin** ngay phía trên hộp chat này.',
+      '2. Bấm **+ Gửi đơn mới**, chọn loại yêu cầu (*Hỗ trợ sử dụng / Khiếu nại / Báo lỗi / Tài khoản*), nhập tiêu đề và nội dung rồi bấm gửi.',
+      '3. Bạn có thể bấm vào đơn đã gửi bất cứ lúc nào để **chat 2 chiều trực tiếp** và xem phản hồi của Admin!',
     ].join('\n')
   }
 
@@ -2347,6 +2388,194 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
             message: 'Đã xóa mã mời.',
           })
         }
+      }
+
+      if (method === 'GET' && path === '/api/admin/tickets') {
+        const tickets = await loadSupportTickets(env)
+        return jsonResponse({
+          success: true,
+          tickets,
+          openCount: tickets.filter((t) => t.status === 'open').length,
+        })
+      }
+
+      const adminTicketMatch = path.match(/^\/api\/admin\/tickets\/([^/]+)\/(reply|status)$/)
+      if (method === 'POST' && adminTicketMatch) {
+        const ticketId = decodeURIComponent(adminTicketMatch[1])
+        const action = adminTicketMatch[2]
+        const body = await readJsonBody(req)
+        const tickets = await loadSupportTickets(env)
+        const ticket = tickets.find((t) => t.id === ticketId)
+        if (!ticket) {
+          return jsonResponse({ success: false, error: 'Không tìm thấy đơn hỗ trợ.' }, 404)
+        }
+
+        if (action === 'reply') {
+          const text = String(body.message || body.text || '').trim()
+          if (!text) {
+            return jsonResponse({ success: false, error: 'Vui lòng nhập nội dung phản hồi.' }, 400)
+          }
+          const nowIso = new Date().toISOString()
+          ticket.messages.push({
+            id: generateId('msg'),
+            sender_role: 'admin',
+            sender_name: auth.user.full_name || 'Quản trị viên',
+            text,
+            created_at: nowIso,
+          })
+          ticket.status = 'replied'
+          ticket.updated_at = nowIso
+          await saveSupportTickets(env, tickets)
+          appendAuditLog(store, {
+            actor_id: auth.user.id,
+            actor_email: auth.user.email,
+            action: 'admin_reply_ticket',
+            target_email: ticket.user_email,
+            detail: { ticketId: ticket.id, subject: ticket.subject },
+          })
+          await saveAuthStore(env, store)
+          return jsonResponse({ success: true, ticket, message: 'Đã gửi phản hồi cho giáo viên.' })
+        }
+
+        if (action === 'status') {
+          const nextStatus = body.status === 'resolved' ? 'resolved' : 'open'
+          ticket.status = nextStatus
+          ticket.updated_at = new Date().toISOString()
+          await saveSupportTickets(env, tickets)
+          return jsonResponse({
+            success: true,
+            ticket,
+            message: nextStatus === 'resolved' ? 'Đã đánh dấu đã giải quyết.' : 'Đã mở lại đơn.',
+          })
+        }
+      }
+    }
+
+    // 9B. TEACHER SUPPORT & COMPLAINT TICKETS (/api/support/tickets)
+    if (path.startsWith('/api/support/tickets')) {
+      const store = await loadAuthStore(env)
+      const auth = await getAuthenticatedUser(req, store)
+      if (!auth) {
+        return jsonResponse({ success: false, error: 'Vui lòng đăng nhập để sử dụng tính năng này.' }, 401)
+      }
+
+      if (method === 'GET' && path === '/api/support/tickets') {
+        const all = await loadSupportTickets(env)
+        const mine = all.filter((t) => t.user_id === auth.user.id)
+        return jsonResponse({ success: true, tickets: mine })
+      }
+
+      if (method === 'POST' && path === '/api/support/tickets') {
+        const body = await readJsonBody(req)
+        const rawCategory = String(body.category || 'support')
+        const category: SupportTicketRecord['category'] =
+          rawCategory === 'complaint' || rawCategory === 'bug' || rawCategory === 'account'
+            ? rawCategory
+            : 'support'
+        const subject = String(body.subject || '').trim()
+        const text = String(body.message || body.text || '').trim()
+
+        if (!subject || !text) {
+          return jsonResponse(
+            { success: false, error: 'Vui lòng nhập đầy đủ tiêu đề và nội dung.' },
+            400
+          )
+        }
+
+        const nowIso = new Date().toISOString()
+        const ticket: SupportTicketRecord = {
+          id: generateId('tkt'),
+          user_id: auth.user.id,
+          user_email: auth.user.email,
+          user_name: auth.user.full_name || auth.user.email,
+          category,
+          subject: subject.slice(0, 140),
+          status: 'open',
+          messages: [
+            {
+              id: generateId('msg'),
+              sender_role: 'user',
+              sender_name: auth.user.full_name || auth.user.email,
+              text: text.slice(0, 2000),
+              created_at: nowIso,
+            },
+          ],
+          created_at: nowIso,
+          updated_at: nowIso,
+        }
+
+        const all = await loadSupportTickets(env)
+        all.unshift(ticket)
+        await saveSupportTickets(env, all)
+
+        appendAuditLog(store, {
+          actor_id: auth.user.id,
+          actor_email: auth.user.email,
+          action: 'support_ticket_created',
+          detail: { ticketId: ticket.id, category, subject: ticket.subject },
+        })
+        await saveAuthStore(env, store)
+
+        // Thông báo email cho Admin nếu hệ thống đã cấu hình Resend + ADMIN_EMAIL
+        const adminEmail = getAdminEmail(env)
+        if (env.RESEND_API_KEY && adminEmail) {
+          const catLabel =
+            category === 'complaint'
+              ? 'Khiếu nại'
+              : category === 'bug'
+                ? 'Báo lỗi'
+                : category === 'account'
+                  ? 'Tài khoản'
+                  : 'Hỗ trợ'
+          await sendEmailViaResend(
+            env,
+            adminEmail,
+            `[Hỗ trợ GV - ${catLabel}] ${ticket.subject}`,
+            `<div style="font-family:Arial,sans-serif;max-width:600px;padding:16px;border:1px solid #e2e8f0;border-radius:10px;">
+              <h3 style="margin:0 0 8px;">Đơn ${escapeHtml(catLabel)} mới từ ${escapeHtml(ticket.user_name)}</h3>
+              <p style="margin:0 0 8px;color:#475569;font-size:13px;">Email: <strong>${escapeHtml(ticket.user_email)}</strong></p>
+              <p style="margin:0 0 8px;font-weight:bold;">Tiêu đề: ${escapeHtml(ticket.subject)}</p>
+              <div style="padding:12px;background:#f8fafc;border-radius:8px;white-space:pre-wrap;">${escapeHtml(text)}</div>
+              <p style="margin:12px 0 0;font-size:12px;color:#64748b;">Vào Cổng Quản trị (/admin) → tab Hỗ trợ & Khiếu nại để trả lời giáo viên.</p>
+            </div>`
+          ).catch(() => undefined)
+        }
+
+        return jsonResponse({
+          success: true,
+          ticket,
+          message: 'Đã gửi đơn tới Quản trị viên thành công!',
+        })
+      }
+
+      const replyMatch = path.match(/^\/api\/support\/tickets\/([^/]+)\/reply$/)
+      if (method === 'POST' && replyMatch) {
+        const ticketId = decodeURIComponent(replyMatch[1])
+        const body = await readJsonBody(req)
+        const text = String(body.message || body.text || '').trim()
+        if (!text) {
+          return jsonResponse({ success: false, error: 'Vui lòng nhập nội dung tin nhắn.' }, 400)
+        }
+
+        const all = await loadSupportTickets(env)
+        const ticket = all.find((t) => t.id === ticketId && t.user_id === auth.user.id)
+        if (!ticket) {
+          return jsonResponse({ success: false, error: 'Không tìm thấy đơn hỗ trợ.' }, 404)
+        }
+
+        const nowIso = new Date().toISOString()
+        ticket.messages.push({
+          id: generateId('msg'),
+          sender_role: 'user',
+          sender_name: auth.user.full_name || auth.user.email,
+          text: text.slice(0, 2000),
+          created_at: nowIso,
+        })
+        ticket.status = 'open'
+        ticket.updated_at = nowIso
+        await saveSupportTickets(env, all)
+
+        return jsonResponse({ success: true, ticket })
       }
     }
 

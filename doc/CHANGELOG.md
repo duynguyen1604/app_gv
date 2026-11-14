@@ -2,6 +2,23 @@
 
 Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa bỏ) trong dự án Quản lý Lịch dạy Giáo viên được ghi lại chi tiết tại tệp này theo định dạng chuẩn [Keep a Changelog](https://keepachangelog.com/).
 
+## [2026-11-14] - Bổ Sung Kênh Liên Hệ Admin / Gửi Đơn Khiếu Nại & Hỗ Trợ + Chat 2 Chiều Trong Chatbox
+
+### Thêm mới (Added)
+- **Backend (`frontend/functions/api/[[route]].ts`)**:
+  - Thêm lưu trữ `SUPPORT_TICKETS_KEY = 'v3_clean_support_tickets'` (`SupportTicketRecord`, `SupportTicketMessage`) hỗ trợ D1 + fallback bộ nhớ.
+  - Thêm các API cho Giáo viên: `GET /api/support/tickets`, `POST /api/support/tickets` (tạo đơn *Hỗ trợ sử dụng / Khiếu nại / Báo lỗi / Tài khoản*, gửi email thông báo tới `ADMIN_EMAIL` nếu đã cấu hình Resend, ghi audit log `support_ticket_created`), và `POST /api/support/tickets/:id/reply` (chat 2 chiều với Admin).
+  - Thêm các API cho Admin: `GET /api/admin/tickets`, `POST /api/admin/tickets/:id/reply` (cập nhật trạng thái `replied`, ghi audit log `admin_reply_ticket`), và `POST /api/admin/tickets/:id/status` (đóng/mở lại đơn `open | replied | resolved`).
+- **Frontend — Chatbox (`frontend/src/components/onboarding/HelpAssistantWidget.tsx`)**:
+  - Bổ sung 2 tab cho tài khoản Giáo viên: **Hỏi AI HDSD** và **Liên hệ Admin** (hiển thị badge số đơn đã có phản hồi mới từ Admin).
+  - Tích hợp form **+ Gửi đơn mới** (chọn loại yêu cầu, nhập tiêu đề và nội dung), danh sách đơn đã gửi với trạng thái (`Chờ xử lý` / `Admin đã trả lời` / `Đã giải quyết`), và khung chat 2 chiều trực tiếp trong từng đơn.
+  - Bổ sung chip gợi ý nhanh `"Cách liên hệ Admin?"` ở tab AI.
+- **Frontend — Trang Quản trị (`frontend/src/pages/admin/AdminDashboardPage.tsx`, `frontend/src/components/layout/AppShell.tsx`)**:
+  - Thêm tab **Hỗ trợ & Khiếu nại** (`tickets`) trong trang Quản trị và menu điều hướng Admin (`Headset` icon + badge số đơn đang chờ/chưa đóng), cho phép Admin xem danh sách đơn theo 2 cột, chat phản hồi 2 chiều và đánh dấu **Đã giải quyết** / **Mở lại**.
+
+### Sửa đổi (Changed)
+- **Trợ lý AI HDSD (`frontend/functions/api/[[route]].ts`)**: Cập nhật `APP_HELP_SYSTEM_PROMPT` và `buildRuleBasedHelpReply` để ưu tiên bắt từ khóa liên quan tới *liên hệ admin / khiếu nại / phản ánh / báo lỗi / gửi đơn* trước nhánh từ chối quyền Admin, hướng dẫn người dùng bấm sang tab **Liên hệ Admin** ngay trong hộp chat.
+
 ## [2026-11-14] - Bổ Sung Trợ Lý AI Chatbox Hướng Dẫn Sử Dụng Ở Góc Màn Hình
 
 ### ➕ Đã thêm (Added)

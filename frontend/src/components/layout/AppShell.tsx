@@ -16,6 +16,7 @@ import {
   History,
   Sliders,
   HelpCircle,
+  Headset,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAppStore } from '../../store/useAppStore'
@@ -48,6 +49,13 @@ const ADMIN_PRIMARY_ITEMS = [
     label: 'Mã mời Giáo viên',
     shortLabel: 'Mã mời',
     icon: Ticket,
+  },
+  {
+    to: '/admin?tab=tickets',
+    tabKey: 'tickets',
+    label: 'Hỗ trợ & Khiếu nại',
+    shortLabel: 'Hỗ trợ',
+    icon: Headset,
   },
   {
     to: '/admin?tab=settings',

@@ -28,10 +28,13 @@ import {
   Sparkles,
   ExternalLink,
   Ban,
+  Headset,
+  Send,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../../store/useAuthStore'
 import {
+  API_BASE_URL,
   apiAdminApproveUser,
   apiAdminBulkApproveUsers,
   apiAdminCreateInvite,
@@ -58,8 +61,27 @@ import type {
 } from '../../types'
 import { cn } from '../../lib/utils'
 
-type AdminTab = 'accounts' | 'invites' | 'settings' | 'audit'
+type AdminTab = 'accounts' | 'invites' | 'tickets' | 'settings' | 'audit'
 type AccountStatusFilter = 'all' | 'pending' | 'active' | 'locked' | 'admin'
+
+interface AdminSupportTicket {
+  id: string
+  user_id: string
+  user_email: string
+  user_name: string
+  category: 'support' | 'complaint' | 'bug' | 'account'
+  subject: string
+  status: 'open' | 'replied' | 'resolved'
+  messages: Array<{
+    id: string
+    sender_role: 'user' | 'admin'
+    sender_name: string
+    text: string
+    created_at: string
+  }>
+  created_at: string
+  updated_at: string
+}
 
 function formatVNDate(iso: string | null | undefined): string {
   if (!iso) return '—'
@@ -294,13 +316,38 @@ export function AdminDashboardPage() {
   const [auditSearch, setAuditSearch] = useState('')
   const [auditCategory, setAuditCategory] = useState<'all' | 'auth' | 'admin' | 'security'>('all')
 
+  // Support & Complaints tab state
+  const [tickets, setTickets] = useState<AdminSupportTicket[]>([])
+  const [ticketFilter, setTicketFilter] = useState<'all' | 'open' | 'replied' | 'resolved'>('all')
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
+  const [ticketReplyText, setTicketReplyText] = useState('')
+  const [sendingTicketReply, setSendingTicketReply] = useState(false)
+
+  const fetchTickets = useCallback(async () => {
+    if (!sessionToken) return
+    try {
+      const resp = await fetch(`${API_BASE_URL}/api/admin/tickets`, {
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      })
+      const data = await resp.json().catch(() => ({}))
+      if (resp.ok && Array.isArray(data.tickets)) {
+        setTickets(data.tickets)
+      }
+    } catch {
+      // ignore
+    }
+  }, [sessionToken])
+
   const fetchOverview = useCallback(
     async (silent = false) => {
       if (!sessionToken) return
       if (!silent) setLoading(true)
       else setRefreshing(true)
       try {
-        const data = await apiGetAdminOverview(sessionToken)
+        const [data] = await Promise.all([
+          apiGetAdminOverview(sessionToken),
+          fetchTickets(),
+        ])
         setOverview(data)
         setPendingAdminApprovalCount(data.stats.pendingCount)
         setRegMode(data.appSettings.registration_mode)
@@ -317,8 +364,75 @@ export function AdminDashboardPage() {
         setRefreshing(false)
       }
     },
-    [sessionToken, setPendingAdminApprovalCount]
+    [sessionToken, setPendingAdminApprovalCount, fetchTickets]
   )
+
+  const openTicketCount = useMemo(
+    () => tickets.filter((t) => t.status === 'open').length,
+    [tickets]
+  )
+
+  const filteredTickets = useMemo(() => {
+    if (ticketFilter === 'all') return tickets
+    return tickets.filter((t) => t.status === ticketFilter)
+  }, [tickets, ticketFilter])
+
+  const selectedTicket = useMemo(
+    () => tickets.find((t) => t.id === selectedTicketId) || null,
+    [tickets, selectedTicketId]
+  )
+
+  const handleAdminReplyTicket = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!sessionToken || !selectedTicket || !ticketReplyText.trim() || sendingTicketReply) return
+    setSendingTicketReply(true)
+    try {
+      const resp = await fetch(`${API_BASE_URL}/api/admin/tickets/${selectedTicket.id}/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ message: ticketReplyText.trim() }),
+      })
+      const data = await resp.json().catch(() => ({}))
+      if (!resp.ok || !data.success) throw new Error(data.error || 'Không thể gửi phản hồi.')
+      toast.success('Đã gửi phản hồi cho giáo viên!')
+      setTicketReplyText('')
+      if (data.ticket) {
+        setTickets((prev) => prev.map((t) => (t.id === data.ticket.id ? data.ticket : t)))
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gửi phản hồi thất bại.')
+    } finally {
+      setSendingTicketReply(false)
+    }
+  }
+
+  const handleAdminToggleTicketStatus = async (
+    ticketId: string,
+    nextStatus: 'open' | 'resolved'
+  ) => {
+    if (!sessionToken) return
+    try {
+      const resp = await fetch(`${API_BASE_URL}/api/admin/tickets/${ticketId}/status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      })
+      const data = await resp.json().catch(() => ({}))
+      if (!resp.ok || !data.success) throw new Error(data.error || 'Cập nhật thất bại.')
+      toast.success(data.message || 'Đã cập nhật trạng thái đơn.')
+      if (data.ticket) {
+        setTickets((prev) => prev.map((t) => (t.id === data.ticket.id ? data.ticket : t)))
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Cập nhật trạng thái thất bại.')
+    }
+  }
 
   useEffect(() => {
     void fetchOverview(false)
@@ -765,6 +879,25 @@ export function AdminDashboardPage() {
         >
           <Ticket size={16} />
           Mã mời Giáo viên ({overview?.invites.length ?? 0})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setTab('tickets')}
+          className={cn(
+            'inline-flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap',
+            activeTab === 'tickets'
+              ? 'border-[#1A73E8] text-[#1A73E8] dark:text-[#8AB4F8] bg-blue-50/60 dark:bg-[#1A73E8]/15'
+              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+          )}
+        >
+          <Headset size={16} />
+          Hỗ trợ & Khiếu nại ({tickets.length})
+          {openTicketCount > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white">
+              {openTicketCount}
+            </span>
+          )}
         </button>
 
         <button
@@ -1299,6 +1432,195 @@ export function AdminDashboardPage() {
                       )
                     })}
                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ================================================================ */}
+          {/* TAB 2B: TEACHER SUPPORT & COMPLAINT TICKETS                      */}
+          {/* ================================================================ */}
+          {activeTab === 'tickets' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              <div className="lg:col-span-5 rounded-2xl bg-white dark:bg-[#1E1F22] border border-gray-200/80 dark:border-[#2D2F34] p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Headset size={16} className="text-[#1A73E8]" />
+                    Đơn từ Giáo viên ({filteredTickets.length})
+                  </h3>
+                  <div className="flex flex-wrap gap-1">
+                    {(['all', 'open', 'replied', 'resolved'] as const).map((st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => setTicketFilter(st)}
+                        className={cn(
+                          'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors',
+                          ticketFilter === st
+                            ? 'bg-[#1A73E8] text-white'
+                            : 'bg-gray-100 dark:bg-[#282A2E] text-gray-600 dark:text-gray-300'
+                        )}
+                      >
+                        {st === 'all'
+                          ? 'Tất cả'
+                          : st === 'open'
+                            ? 'Chờ xử lý'
+                            : st === 'replied'
+                              ? 'Đã trả lời'
+                              : 'Đã xong'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {filteredTickets.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-10">
+                    Chưa có đơn hỗ trợ hoặc khiếu nại nào trong mục này.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-[480px] overflow-y-auto">
+                    {filteredTickets.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setSelectedTicketId(t.id)}
+                        className={cn(
+                          'w-full text-left p-3 rounded-xl border transition-all space-y-1',
+                          selectedTicketId === t.id
+                            ? 'border-[#1A73E8] bg-blue-50/50 dark:bg-[#1A73E8]/15'
+                            : 'border-gray-200/80 dark:border-[#2D2F34] hover:border-[#1A73E8]/40'
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-bold text-gray-900 dark:text-white line-clamp-1">
+                            {t.subject}
+                          </span>
+                          <span
+                            className={cn(
+                              'shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold',
+                              t.status === 'open'
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                : t.status === 'replied'
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                  : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+                            )}
+                          >
+                            {t.status === 'open'
+                              ? 'Chờ xử lý'
+                              : t.status === 'replied'
+                                ? 'Đã trả lời'
+                                : 'Đã xong'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                          {t.user_name} ({t.user_email})
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-gray-400">
+                          <span>
+                            {t.category === 'complaint'
+                              ? 'Khiếu nại'
+                              : t.category === 'bug'
+                                ? 'Báo lỗi'
+                                : t.category === 'account'
+                                  ? 'Tài khoản'
+                                  : 'Hỗ trợ'}
+                          </span>
+                          <span>{formatVNDate(t.updated_at)}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="lg:col-span-7 rounded-2xl bg-white dark:bg-[#1E1F22] border border-gray-200/80 dark:border-[#2D2F34] p-5 flex flex-col min-h-[420px]">
+                {!selectedTicket ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-400 space-y-2">
+                    <Headset size={28} />
+                    <p className="text-xs">
+                      Chọn một đơn bên trái để xem nội dung và chat phản hồi với giáo viên.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="pb-3 border-b border-gray-200 dark:border-[#2D2F34] flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                          {selectedTicket.subject}
+                        </h4>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          Từ: <strong>{selectedTicket.user_name}</strong> ({selectedTicket.user_email})
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleAdminToggleTicketStatus(
+                            selectedTicket.id,
+                            selectedTicket.status === 'resolved' ? 'open' : 'resolved'
+                          )
+                        }
+                        className={cn(
+                          'px-3 py-1.5 rounded-xl text-xs font-bold transition-colors',
+                          selectedTicket.status === 'resolved'
+                            ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        )}
+                      >
+                        {selectedTicket.status === 'resolved'
+                          ? 'Mở lại đơn'
+                          : 'Đánh dấu Đã giải quyết'}
+                      </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto py-4 space-y-3 max-h-[360px]">
+                      {selectedTicket.messages.map((m) => (
+                        <div
+                          key={m.id}
+                          className={cn(
+                            'flex flex-col',
+                            m.sender_role === 'admin' ? 'items-end' : 'items-start'
+                          )}
+                        >
+                          <span className="text-[10px] text-gray-400 mb-0.5 px-1">
+                            {m.sender_role === 'admin' ? `Admin (${m.sender_name})` : m.sender_name}
+                          </span>
+                          <div
+                            className={cn(
+                              'max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed whitespace-pre-wrap',
+                              m.sender_role === 'admin'
+                                ? 'bg-[#1A73E8] text-white rounded-br-sm'
+                                : 'bg-gray-100 dark:bg-[#282A2E] text-gray-800 dark:text-gray-100 rounded-bl-sm'
+                            )}
+                          >
+                            {m.text}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <form
+                      onSubmit={handleAdminReplyTicket}
+                      className="pt-3 border-t border-gray-200 dark:border-[#2D2F34] flex items-center gap-2"
+                    >
+                      <input
+                        type="text"
+                        value={ticketReplyText}
+                        onChange={(e) => setTicketReplyText(e.target.value)}
+                        placeholder="Nhập phản hồi gửi giáo viên..."
+                        disabled={sendingTicketReply}
+                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-gray-100 dark:bg-[#282A2E] text-xs focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/50"
+                      />
+                      <button
+                        type="submit"
+                        disabled={sendingTicketReply || !ticketReplyText.trim()}
+                        className="px-4 py-2.5 rounded-xl bg-[#1A73E8] hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Send size={14} />
+                        Gửi
+                      </button>
+                    </form>
+                  </>
                 )}
               </div>
             </div>
