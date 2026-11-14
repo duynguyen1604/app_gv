@@ -2,6 +2,20 @@
 
 Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa bỏ) trong dự án Quản lý Lịch dạy Giáo viên được ghi lại chi tiết tại tệp này theo định dạng chuẩn [Keep a Changelog](https://keepachangelog.com/).
 
+## [2026-11-14] - Trợ Lý Email Lịch Dạy Hàng Ngày 24/7 Trên Cloudflare Edge (Resend + Cron)
+
+### ➕ Đã thêm & Nâng cấp (Added & Changed)
+- **Tích hợp gửi email qua Resend API & Endpoint Cron 24/7 ([`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts))**:
+  * Nâng cấp `POST /api/email/test`: gửi email lịch dạy thực tế qua **Resend API** (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`), tự động dựng HTML bảng lịch dạy rõ ràng theo giờ/loại/lớp/địa điểm, fallback trả lỗi chi tiết nếu thiếu biến môi trường.
+  * Thêm endpoint `GET / POST /api/cron/daily-email` (bảo vệ bằng `CRON_SECRET` qua query `?secret=`, header `x-cron-secret`, hoặc `Authorization: Bearer`):
+    - Quét danh sách `state:<userId>` trong Cloudflare D1/KV bằng hàm mới `kvListByPrefix`.
+    - Kiểm tra người dùng có bật `settings.email_enabled`, có `settings.notification_email`, khớp khung giờ gửi (`settings.notify_time` theo múi giờ Việt Nam `UTC+7`), và chưa gửi trùng trong ngày (`last_daily_email_date`).
+    - Tự động tính lịch dạy trong ngày (`computeDailyEmailItemsForState`) gồm cả lịch trường học, lịch dạy thêm cố định, buổi dời/hủy, buổi phát sinh và ngày nghỉ lễ.
+    - Gửi email qua `sendEmailViaResend`, ghi nhật ký `notificationLogs` và đánh dấu `last_daily_email_date` để không gửi trùng.
+  * Người dùng cuối (giáo viên) không cần tự cấu hình kỹ thuật — chỉ cần bật thông báo, nhập email và chọn giờ nhận trong trang Cài đặt.
+
+---
+
 - **Cập nhật Tài liệu tổng quan ([`README.md`](file:///d:/app_gv/README.md), [`doc/README.md`](file:///d:/app_gv/doc/README.md))**:
   * Bổ sung đầy đủ các tính năng mới nhất: Cloudflare Pages Functions + D1 Edge (`0ms` cold start), Google OAuth tự kích hoạt, Lịch học phát sinh có tùy chọn học phí riêng, Lọc học phí theo lớp, Lịch di động kiểu Google Calendar, và Hướng dẫn sử dụng 6 bước (`OnboardingTour`) lưu trạng thái theo tài khoản.
 

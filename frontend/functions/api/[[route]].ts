@@ -31,6 +31,7 @@ export interface Env {
   GEMINI_API_KEY?: string
   RESEND_API_KEY?: string
   RESEND_FROM_EMAIL?: string
+  CRON_SECRET?: string
   FRONTEND_ORIGIN?: string
 }
 
@@ -104,6 +105,42 @@ async function kvSet(db: D1Database | undefined, key: string, value: unknown): P
       console.warn('[Cloudflare D1] kvSet warning:', err)
     }
   }
+}
+
+async function kvListByPrefix<T>(
+  db: D1Database | undefined,
+  prefix: string
+): Promise<Array<{ key: string; value: T }>> {
+  const results: Array<{ key: string; value: T }> = []
+  if (db) {
+    try {
+      await ensureD1Table(db)
+      const rows = await db
+        .prepare('SELECT key, value FROM kv_store WHERE key LIKE ?1')
+        .bind(`${prefix}%`)
+        .all<{ key: string; value: string }>()
+      for (const row of rows.results || []) {
+        try {
+          results.push({ key: row.key, value: JSON.parse(row.value) as T })
+        } catch {
+          // ignore malformed json
+        }
+      }
+      return results
+    } catch (err) {
+      console.warn('[Cloudflare D1] kvListByPrefix fallback to memory:', err)
+    }
+  }
+  for (const [key, raw] of memoryKv.entries()) {
+    if (key.startsWith(prefix)) {
+      try {
+        results.push({ key, value: JSON.parse(raw) as T })
+      } catch {
+        // ignore
+      }
+    }
+  }
+  return results
 }
 
 // ============================================================================
@@ -580,6 +617,245 @@ function parseZaloRuleBased(text: string) {
     confidence: 0.85,
     summary: text.trim().slice(0, 140),
     suggested_time: suggestedTime,
+  }
+}
+
+// ============================================================================
+// DAILY SCHEDULE EMAIL HELPERS (RESEND + CRON)
+// ============================================================================
+
+interface DailyEmailItem {
+  type: string
+  title: string
+  time: string
+  location?: string
+  period_code?: string
+  session_group?: string
+  spans_to_group?: string
+}
+
+function getVietnamDateInfo(): {
+  dateStr: string
+  displayDate: string
+  hour: number
+  minute: number
+  weekday: number
+} {
+  const vnNow = new Date(Date.now() + 7 * 3600 * 1000)
+  const y = vnNow.getUTCFullYear()
+  const m = String(vnNow.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(vnNow.getUTCDate()).padStart(2, '0')
+  const jsDay = vnNow.getUTCDay()
+  const weekday = jsDay === 0 ? 7 : jsDay
+  return {
+    dateStr: `${y}-${m}-${d}`,
+    displayDate: `${d}/${m}/${y}`,
+    hour: vnNow.getUTCHours(),
+    minute: vnNow.getUTCMinutes(),
+    weekday,
+  }
+}
+
+function escapeHtml(str: string): string {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function isWithinDateRange(dateStr: string, validFrom?: string, validTo?: string): boolean {
+  if (validFrom && dateStr < validFrom) return false
+  if (validTo && dateStr > validTo) return false
+  return true
+}
+
+function computeDailyEmailItemsForState(
+  state: ServerState,
+  dateStr: string,
+  weekday: number,
+): DailyEmailItem[] {
+  const settings = state.settings || {}
+  const notifyContent = settings.notify_content || 'both'
+  const showDuty = settings.show_duty_in_email !== false
+
+  const holidays: any[] = Array.isArray(state.holidays) ? state.holidays : []
+  if (holidays.some((h) => h.date === dateStr)) {
+    return []
+  }
+
+  const items: DailyEmailItem[] = []
+
+  // 1. Lịch trường học (schoolSchedule)
+  if (notifyContent === 'both' || notifyContent === 'school') {
+    const periods: any[] = Array.isArray(state.schoolPeriods) ? state.schoolPeriods : []
+    const periodMap = new Map<string, any>(periods.map((p) => [p.id, p]))
+    const schoolSlots: any[] = Array.isArray(state.schoolSchedule) ? state.schoolSchedule : []
+
+    for (const slot of schoolSlots) {
+      if (Number(slot.weekday) !== weekday) continue
+      if (!isWithinDateRange(dateStr, slot.valid_from, slot.valid_to)) continue
+      if (slot.is_duty && !showDuty) continue
+
+      const p = periodMap.get(slot.period_id)
+      const startTime = slot.start_time || p?.start_time || '07:00'
+      const endTime = slot.end_time || p?.end_time || ''
+      const timeLabel = endTime ? `${startTime} - ${endTime}` : startTime
+
+      items.push({
+        type: slot.is_duty ? 'Trực ban / Họp' : 'Lịch trường',
+        title: slot.subject_name || slot.title || p?.name || 'Tiết học ở trường',
+        time: timeLabel,
+        location: slot.room || slot.class_name || '',
+        period_code: p?.code || slot.period_code,
+        session_group: slot.session_group,
+        spans_to_group: slot.spans_to_group,
+      })
+    }
+  }
+
+  // 2. Lịch dạy thêm (scheduleRules + sessionExceptions + extraSessions)
+  if (notifyContent === 'both' || notifyContent === 'tutoring') {
+    const classes: any[] = Array.isArray(state.classes) ? state.classes : []
+    const classMap = new Map<string, any>(classes.map((c) => [c.id, c]))
+    const exceptions: any[] = Array.isArray(state.sessionExceptions) ? state.sessionExceptions : []
+    const rules: any[] = Array.isArray(state.scheduleRules) ? state.scheduleRules : []
+
+    for (const rule of rules) {
+      if (Number(rule.weekday) !== weekday) continue
+      if (!isWithinDateRange(dateStr, rule.valid_from, rule.valid_to)) continue
+
+      const ex = exceptions.find(
+        (e) => e.rule_id === rule.id && e.original_date === dateStr,
+      )
+      if (ex && (ex.type === 'cancelled' || ex.type === 'moved')) continue
+
+      const cls = classMap.get(rule.class_id)
+      const startTime = rule.start_time || '18:00'
+      const endTime = rule.end_time || ''
+      items.push({
+        type: 'Dạy thêm',
+        title: cls?.name || 'Lớp dạy thêm',
+        time: endTime ? `${startTime} - ${endTime}` : startTime,
+        location: cls?.location || rule.location || '',
+      })
+    }
+
+    // Các buổi được dời đến ngày hôm nay
+    for (const ex of exceptions) {
+      if (ex.type === 'moved' && ex.new_date === dateStr) {
+        const rule = rules.find((r) => r.id === ex.rule_id)
+        const cls = classMap.get(ex.class_id || rule?.class_id)
+        const startTime = ex.new_start_time || rule?.start_time || '18:00'
+        const endTime = ex.new_end_time || rule?.end_time || ''
+        items.push({
+          type: 'Dạy bù / Dời lịch',
+          title: cls?.name || 'Lớp dạy thêm',
+          time: endTime ? `${startTime} - ${endTime}` : startTime,
+          location: cls?.location || '',
+        })
+      }
+    }
+
+    // Các buổi học phát sinh (extraSessions)
+    const extraSessions: any[] = Array.isArray(state.extraSessions) ? state.extraSessions : []
+    for (const extra of extraSessions) {
+      if (extra.date !== dateStr) continue
+      const cls = classMap.get(extra.class_id)
+      const startTime = extra.start_time || '18:00'
+      const endTime = extra.end_time || ''
+      items.push({
+        type: 'Lịch phát sinh',
+        title: cls?.name ? `${cls.name}${extra.note ? ` (${extra.note})` : ''}` : extra.note || 'Buổi phát sinh',
+        time: endTime ? `${startTime} - ${endTime}` : startTime,
+        location: cls?.location || '',
+      })
+    }
+  }
+
+  items.sort((a, b) => a.time.localeCompare(b.time))
+  return items
+}
+
+function buildDailyScheduleEmailHtml(
+  teacherName: string,
+  displayDate: string,
+  items: DailyEmailItem[],
+): string {
+  const safeTeacher = escapeHtml(teacherName || 'Thầy/Cô')
+  const safeDate = escapeHtml(displayDate)
+
+  const rowsHtml =
+    items.length === 0
+      ? `<p style="margin:16px 0;padding:16px;background:#f8fafc;border-radius:10px;color:#475569;font-size:15px;">Hôm nay (${safeDate}) Thầy/Cô không có lịch dạy nào được ghi nhận. Chúc Thầy/Cô một ngày nghỉ ngơi thật tốt!</p>`
+      : `<table style="width:100%;border-collapse:collapse;margin-top:16px;">
+          <thead>
+            <tr style="background:#f1f5f9;text-align:left;color:#334155;font-size:13px;">
+              <th style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">Giờ</th>
+              <th style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">Loại</th>
+              <th style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">Nội dung / Lớp</th>
+              <th style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">Địa điểm</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items
+              .map(
+                (item) => `
+              <tr>
+                <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#0f172a;white-space:nowrap;">${escapeHtml(item.time)}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#2563eb;font-size:13px;">${escapeHtml(item.type)}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#0f172a;">${escapeHtml(item.title)}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:13px;">${escapeHtml(item.location || '—')}</td>
+              </tr>`,
+              )
+              .join('')}
+          </tbody>
+        </table>`
+
+  return `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;padding:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;">
+    <h2 style="margin:0 0 8px;color:#0f172a;font-size:20px;">Lịch dạy hôm nay — ${safeDate}</h2>
+    <p style="margin:0 0 12px;color:#475569;font-size:14px;">Xin chào <strong>${safeTeacher}</strong>, đây là tổng hợp lịch dạy của bạn trong ngày:</p>
+    ${rowsHtml}
+    <p style="margin:20px 0 0;color:#94a3b8;font-size:12px;">Email được gửi tự động từ Trợ Lý Giáo Viên (app-gv.pages.dev). Bạn có thể thay đổi giờ nhận hoặc tắt thông báo trong mục Cài đặt.</p>
+  </div>`
+}
+
+async function sendEmailViaResend(
+  env: Env,
+  to: string,
+  subject: string,
+  html: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const apiKey = env.RESEND_API_KEY
+  if (!apiKey) {
+    return { ok: false, error: 'Server chưa cấu hình RESEND_API_KEY' }
+  }
+
+  const from = env.RESEND_FROM_EMAIL || 'Lịch Dạy Giáo Viên <onboarding@resend.dev>'
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject,
+        html,
+      }),
+    })
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      return { ok: false, error: `Resend HTTP ${res.status}: ${text || res.statusText}` }
+    }
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'Lỗi kết nối tới Resend API' }
   }
 }
 
@@ -1683,29 +1959,21 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
       }
     }
 
-    // 11. EMAIL TEST (/api/email/test) QUA RESEND HTTP API TRÊN EDGE
+    // 11. EMAIL TEST (/api/email/test) & CRON DAILY EMAIL (/api/cron/daily-email) QUA RESEND HTTP API TRÊN EDGE
     if (method === 'POST' && path === '/api/email/test') {
       const body = await readJsonBody(req)
       const to = String(body.to || '').trim()
       if (!to) return jsonResponse({ error: 'Thiếu địa chỉ email người nhận.' }, 400)
 
+      const nowVn = getVietnamDateInfo()
+      const items = Array.isArray(body.items) ? (body.items as DailyEmailItem[]) : []
+      const subject = `[Lịch dạy] Thông báo lịch dạy hôm nay (${nowVn.displayDate})`
+      const html = buildDailyScheduleEmailHtml('Thầy/Cô', nowVn.displayDate, items)
+
       if (env.RESEND_API_KEY) {
-        const res = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: env.RESEND_FROM_EMAIL || 'Lịch Dạy Giáo Viên <onboarding@resend.dev>',
-            to: [to],
-            subject: `[Lịch dạy] Thông báo lịch dạy trong ngày (${new Date().toLocaleDateString('vi-VN')})`,
-            html: `<p>Xin chào Cô,</p><p>Hệ thống Cloudflare Edge đã kết nối gửi email thông báo lịch dạy thành công tới <b>${to}</b>.</p>`,
-          }),
-        })
+        const res = await sendEmailViaResend(env, to, subject, html)
         if (!res.ok) {
-          const errText = await res.text()
-          return jsonResponse({ error: `Resend API lỗi: ${errText}` }, 500)
+          return jsonResponse({ error: `Resend API lỗi: ${res.error}` }, 500)
         }
         return jsonResponse({ ok: true, provider: 'resend' })
       }
@@ -1713,8 +1981,112 @@ export async function handleApiRequest(req: Request, env: Env): Promise<Response
       return jsonResponse({
         ok: true,
         provider: 'edge-simulated',
+        result: { simulated: true },
         message:
           'Đã kiểm tra luồng thông báo trên Cloudflare Edge (Thêm RESEND_API_KEY trong Settings -> Variables của Cloudflare để gửi email thật).',
+      })
+    }
+
+    if ((method === 'GET' || method === 'POST') && path === '/api/cron/daily-email') {
+      const expectedSecret = (env.CRON_SECRET || '').trim()
+      if (expectedSecret) {
+        const bearer = extractBearerToken(req) || ''
+        const querySecret = url.searchParams.get('secret') || ''
+        const headerSecret = req.headers.get('x-cron-secret') || ''
+        if (
+          bearer !== expectedSecret &&
+          querySecret !== expectedSecret &&
+          headerSecret !== expectedSecret
+        ) {
+          return jsonResponse({ ok: false, error: 'Unauthorized cron trigger.' }, 401)
+        }
+      }
+
+      if (!env.RESEND_API_KEY) {
+        return jsonResponse(
+          {
+            ok: false,
+            error:
+              'Chưa cấu hình RESEND_API_KEY trong Cloudflare Pages -> Settings -> Variables and secrets.',
+          },
+          400
+        )
+      }
+
+      const force = url.searchParams.get('force') === '1'
+      const nowVn = getVietnamDateInfo()
+      const currentMinutes = nowVn.hour * 60 + nowVn.minute
+      const allStates = await kvListByPrefix<ServerState>(env.DB, 'v3_clean_sync_state:')
+      const authStore = await loadAuthStore(env)
+
+      let checkedUsers = 0
+      let sentCount = 0
+      let skippedCount = 0
+      const errors: Array<{ userId: string; error: string }> = []
+
+      for (const entry of allStates) {
+        const userId = entry.key.replace('v3_clean_sync_state:', '').trim()
+        if (!userId || userId === 'local') continue
+        checkedUsers++
+
+        const state = entry.value
+        const settings = (state.settings || {}) as Record<string, unknown>
+        const notifyEnabled = Boolean(settings.notify_enabled)
+        const notifyEmail = String(settings.notify_email || '').trim()
+
+        if (!notifyEnabled || !notifyEmail) {
+          skippedCount++
+          continue
+        }
+
+        // Kiểm tra ngày nghỉ lễ
+        const holidays = Array.isArray(state.holidays)
+          ? (state.holidays as Array<{ date?: string }>)
+          : []
+        if (holidays.some((h) => h.date === nowVn.dateStr)) {
+          skippedCount++
+          continue
+        }
+
+        // Kiểm tra giờ gửi (mặc định 06:00) và chống gửi trùng trong ngày
+        const notifyTime = String(settings.notify_time || '06:00')
+        const [hhStr, mmStr] = notifyTime.split(':')
+        const notifyMinutes = (Number(hhStr) || 6) * 60 + (Number(mmStr) || 0)
+
+        const sentKey = `v3_clean_email_sent:${userId}`
+        const sentRecord = await kvGet<{ date: string }>(env.DB, sentKey)
+        if (!force && (sentRecord?.date === nowVn.dateStr || currentMinutes < notifyMinutes)) {
+          skippedCount++
+          continue
+        }
+
+        const profile = authStore.users.find((u) => u.id === userId)
+        const teacherName = profile?.full_name || 'Thầy/Cô'
+        const items = computeDailyEmailItemsForState(state, nowVn.dateStr, nowVn.weekday)
+        const subject = `[Lịch dạy] Lịch hôm nay (${nowVn.displayDate}) - ${items.length} buổi`
+        const html = buildDailyScheduleEmailHtml(teacherName, nowVn.displayDate, items)
+
+        const sendRes = await sendEmailViaResend(env, notifyEmail, subject, html)
+        if (sendRes.ok) {
+          sentCount++
+          await kvSet(env.DB, sentKey, {
+            date: nowVn.dateStr,
+            sent_at: new Date().toISOString(),
+            to: notifyEmail,
+          })
+        } else {
+          errors.push({ userId, error: sendRes.error || 'Unknown error' })
+        }
+      }
+
+      return jsonResponse({
+        ok: true,
+        date: nowVn.dateStr,
+        timeVn: `${String(nowVn.hour).padStart(2, '0')}:${String(nowVn.minute).padStart(2, '0')}`,
+        checkedUsers,
+        sentCount,
+        skippedCount,
+        errors,
       })
     }
 
