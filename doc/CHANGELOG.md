@@ -2,6 +2,19 @@
 
 Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa bỏ) trong dự án Quản lý Lịch dạy Giáo viên được ghi lại chi tiết tại tệp này theo định dạng chuẩn [Keep a Changelog](https://keepachangelog.com/).
 
+## [2026-11-14] - Sửa Lỗi Điền Sẵn Email & Tối Ưu Giao Diện Mục "Google Calendar & AI" Trong Cài Đặt Hệ Thống
+
+### 🔧 Đã sửa & Cải thiện (Fixed & Improved)
+- **Tự động điền đúng Gmail của tài khoản đang đăng nhập ([`frontend/src/pages/SettingsPage.tsx`](file:///d:/app_gv/frontend/src/pages/SettingsPage.tsx))**:
+  * Khi bấm **Kết nối Google Calendar** hoặc **Kết nối lại**, ô email tự động ưu tiên lấy `settings.gcal_account_email` hoặc `profile.email` của tài khoản đang đăng nhập thay vì mặc định cứng `giaovien@gmail.com`.
+  * Bổ sung nút bấm nhanh **"Dùng email đang đăng nhập"** trong modal kết nối Google Calendar và **"Dùng email tài khoản"** ở mục **Thông báo Gmail**.
+- **Tinh gọn nội dung chưa hợp lý trong tab "Google Calendar & AI" ([`frontend/src/pages/SettingsPage.tsx`](file:///d:/app_gv/frontend/src/pages/SettingsPage.tsx))**:
+  * Thu gọn ô nhập kỹ thuật `Google OAuth Access Token` vào mục **Tùy chọn nâng cao** và hướng dẫn rõ cách dùng đường link `.ics` khi không có Token.
+  * Cập nhật tên và mô tả mục **Đồng bộ dữ liệu đám mây (Cloud Sync)** (bỏ nhãn cứng `PostgreSQL 16 / Docker Backend` để phù hợp khi chạy trên Cloudflare D1 Edge).
+  * Cập nhật mục **Trí tuệ nhân tạo (Google Gemini Vision)**: ghi rõ **Không bắt buộc** vì app đã có bộ đọc tiếng Việt tích hợp sẵn, kèm link lấy key miễn phí tại `aistudio.google.com`.
+
+---
+
 ## [2026-11-14] - Trợ Lý Email Lịch Dạy Hàng Ngày 24/7 Trên Cloudflare Edge (Resend + Cron)
 
 ### ➕ Đã thêm & Nâng cấp (Added & Changed)

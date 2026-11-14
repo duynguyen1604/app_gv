@@ -233,10 +233,17 @@ export function SettingsPage() {
   const [showApiKey, setShowApiKey] = useState(false)
 
   // Google Calendar One-Way Sync states (Mục 2.10)
+  const accountEmail = profile?.email?.includes('@') ? profile.email : ''
   const [showGCalConnectModal, setShowGCalConnectModal] = useState(false)
   const [gcalAccountInput, setGcalAccountInput] = useState(
-    () => settings.gcal_account_email || settings.notify_email || 'giaovien@gmail.com'
+    () => settings.gcal_account_email || accountEmail || settings.notify_email || ''
   )
+  const openGCalConnectModal = () => {
+    setGcalAccountInput(
+      settings.gcal_account_email || accountEmail || settings.notify_email || ''
+    )
+    setShowGCalConnectModal(true)
+  }
   const [gcalAccessTokenInput, setGcalAccessTokenInput] = useState('')
   const [gcalSyncing, setGcalSyncing] = useState(false)
   const [confirmClearGCal, setConfirmClearGCal] = useState(false)
@@ -385,10 +392,15 @@ export function SettingsPage() {
   // Google Calendar One-Way Sync Handlers (Mục 2.10)
   const handleConnectGCal = async (e: React.FormEvent) => {
     e.preventDefault()
+    const targetEmail = gcalAccountInput.trim() || accountEmail || settings.notify_email?.trim() || ''
+    if (!targetEmail) {
+      toast.error('Vui lòng nhập email tài khoản Google nhận lịch')
+      return
+    }
     setGcalSyncing(true)
     try {
       const res = await connectGoogleCalendar({
-        accountEmail: gcalAccountInput.trim() || 'giaovien@gmail.com',
+        accountEmail: targetEmail,
         accessToken: gcalAccessTokenInput.trim() || undefined,
       })
       setShowGCalConnectModal(false)
@@ -652,7 +664,7 @@ export function SettingsPage() {
     {
       key: 'gcal_ai',
       label: 'Google Calendar & AI',
-      subtitle: 'Đồng bộ PostgreSQL & Gemini Vision',
+      subtitle: 'Lịch Google, đồng bộ đám mây & Trợ lý AI',
       icon: Sparkles,
     },
     {
@@ -1102,13 +1114,24 @@ export function SettingsPage() {
 
                   <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
                     <div className="tablet:col-span-2">
-                      <label className="label text-xs">Email giáo viên nhận thông báo</label>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <label className="label text-xs mb-0">Email giáo viên nhận thông báo</label>
+                        {accountEmail && settings.notify_email !== accountEmail && (
+                          <button
+                            type="button"
+                            onClick={() => updateSettings({ notify_email: accountEmail })}
+                            className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            Dùng email tài khoản ({accountEmail})
+                          </button>
+                        )}
+                      </div>
                       <input
                         className="input text-sm"
                         type="email"
                         value={settings.notify_email}
                         onChange={(e) => updateSettings({ notify_email: e.target.value })}
-                        placeholder="giaovien@gmail.com"
+                        placeholder={accountEmail || 'tenban@gmail.com'}
                       />
                     </div>
 
@@ -1277,7 +1300,7 @@ export function SettingsPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setShowGCalConnectModal(true)}
+                        onClick={openGCalConnectModal}
                         className="btn-primary py-1.5 px-3 text-xs bg-amber-600 hover:bg-amber-700 shrink-0"
                       >
                         Kết nối lại
@@ -1320,7 +1343,7 @@ export function SettingsPage() {
                             {settings.gcal_connected ? (
                               <>
                                 Tài khoản:{' '}
-                                <strong>{settings.gcal_account_email || 'giaovien@gmail.com'}</strong>{' '}
+                                <strong>{settings.gcal_account_email || accountEmail || 'Chưa rõ email'}</strong>{' '}
                                 · Mã lịch:{' '}
                                 <code className="font-mono text-[11px]">
                                   {settings.gcal_calendar_id || 'lich-day'}
@@ -1336,7 +1359,7 @@ export function SettingsPage() {
                       {!settings.gcal_connected ? (
                         <button
                           type="button"
-                          onClick={() => setShowGCalConnectModal(true)}
+                          onClick={openGCalConnectModal}
                           className="btn-primary py-2 px-4 text-xs shrink-0"
                         >
                           <Link2 size={15} /> Kết nối Google Calendar
@@ -1621,14 +1644,14 @@ export function SettingsPage() {
                   )}
                 </section>
 
-                {/* PostgreSQL Cloud Sync Section */}
+                {/* Cloud Sync Section */}
                 <section className="card p-5 flex flex-col gap-4">
                   <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <Cloud size={19} className="text-sky-500" />
-                    Đồng bộ cơ sở dữ liệu PostgreSQL 16 (Docker Backend)
+                    Đồng bộ dữ liệu đám mây (Cloud Sync)
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Dữ liệu được lưu trữ tức thời trên trình duyệt và tự động đồng bộ hai chiều với máy chủ PostgreSQL 16 (có Row Level Security cô lập dữ liệu từng tài khoản).
+                    Dữ liệu của bạn được lưu tức thời trên trình duyệt và tự động đồng bộ hai chiều với máy chủ đám mây để dùng chung trên điện thoại và máy tính (mỗi tài khoản được cô lập dữ liệu riêng).
                   </p>
 
                   <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between gap-4">
@@ -1645,7 +1668,7 @@ export function SettingsPage() {
                           )}
                         />
                         {cloudStatus === 'checking' && 'Đang kiểm tra kết nối máy chủ...'}
-                        {cloudStatus === 'online' && 'Máy chủ Backend & PostgreSQL đang trực tuyến'}
+                        {cloudStatus === 'online' && 'Máy chủ đồng bộ đám mây đang trực tuyến'}
                         {cloudStatus === 'offline' && 'Đang chạy chế độ Offline trên trình duyệt'}
                       </div>
                       <div className="text-xs text-slate-400 mt-1">
@@ -1660,7 +1683,7 @@ export function SettingsPage() {
                       className="btn-secondary py-2 px-4 text-xs shrink-0"
                     >
                       <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
-                      Đồng bộ DB
+                      Đồng bộ ngay
                     </button>
                   </div>
                 </section>
@@ -1669,14 +1692,27 @@ export function SettingsPage() {
                 <section className="card p-5 flex flex-col gap-3">
                   <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <Sparkles size={19} className="text-purple-500" />
-                    Trí tuệ nhân tạo (Google Gemini 1.5 Flash Vision)
+                    Trí tuệ nhân tạo (Google Gemini Vision)
                   </h2>
-                  <p className="text-xs text-slate-500">
-                    Dùng để đọc ảnh chụp Thời khóa biểu trường thành bảng tiết S1–C5 và phân tích tin nhắn Zalo của phụ huynh/học sinh. Ứng dụng đã tích hợp sẵn bộ đọc tiếng Việt quy tắc, bạn có thể nhập thêm Gemini API Key để tăng độ chính xác.
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Hỗ trợ đọc ảnh chụp Thời khóa biểu trường thành bảng tiết S1–C5 và phân tích tin nhắn Zalo của phụ huynh/học sinh.{' '}
+                    <strong className="text-slate-700 dark:text-slate-300">
+                      Không bắt buộc:
+                    </strong>{' '}
+                    ứng dụng đã tích hợp sẵn bộ đọc tiếng Việt quy tắc, bạn chỉ cần nhập thêm Gemini API Key (miễn phí tại{' '}
+                    <a
+                      href="https://aistudio.google.com/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 dark:text-blue-400 underline"
+                    >
+                      aistudio.google.com
+                    </a>
+                    ) nếu muốn AI đọc ảnh chính xác hơn.
                   </p>
 
                   <div>
-                    <label className="label text-xs">Google Gemini API Key</label>
+                    <label className="label text-xs">Google Gemini API Key (Tùy chọn)</label>
                     <div className="relative">
                       <input
                         type={showApiKey ? 'text' : 'password'}
@@ -2075,39 +2111,52 @@ export function SettingsPage() {
         <form onSubmit={handleConnectGCal} className="flex flex-col gap-4">
           <div className="p-3.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/35 border border-blue-200/70 dark:border-blue-800/60 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
             <div className="font-bold text-blue-800 dark:text-blue-300 mb-1 flex items-center gap-1.5">
-              <ShieldCheck size={15} /> Quyền tối thiểu & Bảo mật phía máy chủ
+              <ShieldCheck size={15} /> Quyền tối thiểu & Bảo mật
             </div>
-            Ứng dụng chỉ xin quyền tạo và quản lý một lịch phụ riêng tên{' '}
-            <strong>"Lịch dạy"</strong> (phạm vi <code>calendar.app.created</code>), không đọc hay chỉnh sửa bất kỳ lịch cá nhân nào của bạn. Mã kết nối được mã hóa AES-256-GCM trên máy chủ.
+            Ứng dụng chỉ tạo và quản lý một lịch phụ riêng tên{' '}
+            <strong>"Lịch dạy"</strong> (phạm vi <code>calendar.app.created</code>), không đọc hay chỉnh sửa các lịch cá nhân khác của bạn.
           </div>
 
           <div>
-            <label className="label text-xs">Email tài khoản Google nhận lịch</label>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <label className="label text-xs mb-0">Email tài khoản Google nhận lịch</label>
+              {accountEmail && gcalAccountInput !== accountEmail && (
+                <button
+                  type="button"
+                  onClick={() => setGcalAccountInput(accountEmail)}
+                  className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Dùng email đang đăng nhập ({accountEmail})
+                </button>
+              )}
+            </div>
             <input
               type="email"
               className="input text-sm"
               value={gcalAccountInput}
               onChange={(e) => setGcalAccountInput(e.target.value)}
-              placeholder="giaovien@gmail.com"
+              placeholder={accountEmail || 'tenban@gmail.com'}
               required
             />
           </div>
 
-          <div>
-            <label className="label text-xs">
-              Google OAuth Access Token (Tùy chọn — để trống để dùng chế độ đồng bộ trực tiếp)
-            </label>
-            <input
-              type="password"
-              className="input text-xs font-mono"
-              value={gcalAccessTokenInput}
-              onChange={(e) => setGcalAccessTokenInput(e.target.value)}
-              placeholder="ya29.a0..."
-            />
-            <span className="text-[11px] text-slate-400 mt-1 block">
-              Khi cấu hình OAuth trên máy chủ hoặc nhập Access Token, sự kiện sẽ được đẩy trực tiếp lên Google Calendar API.
-            </span>
-          </div>
+          <details className="rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-800/40 p-3">
+            <summary className="text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+              Tùy chọn nâng cao (Google OAuth Access Token)
+            </summary>
+            <div className="mt-2.5">
+              <input
+                type="password"
+                className="input text-xs font-mono"
+                value={gcalAccessTokenInput}
+                onChange={(e) => setGcalAccessTokenInput(e.target.value)}
+                placeholder="ya29.a0... (để trống nếu dùng link .ics hoặc đồng bộ cục bộ)"
+              />
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 block">
+                Nếu bạn không có Access Token, sau khi kết nối có thể sao chép <strong>đường link .ics</strong> ở mục bên dưới để thêm trực tiếp vào Google Calendar trên web/điện thoại.
+              </span>
+            </div>
+          </details>
 
           <div className="flex gap-2.5 pt-1">
             <button
