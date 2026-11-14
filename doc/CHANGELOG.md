@@ -2,6 +2,19 @@
 
 Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa bỏ) trong dự án Quản lý Lịch dạy Giáo viên được ghi lại chi tiết tại tệp này theo định dạng chuẩn [Keep a Changelog](https://keepachangelog.com/).
 
+## [2026-11-14] - Bổ Sung Trợ Lý AI Chatbox Hướng Dẫn Sử Dụng Ở Góc Màn Hình
+
+### ➕ Đã thêm (Added)
+- **Widget Trợ lý AI góc màn hình ([`frontend/src/components/onboarding/HelpAssistantWidget.tsx`](file:///d:/app_gv/frontend/src/components/onboarding/HelpAssistantWidget.tsx), [`frontend/src/components/layout/AppShell.tsx`](file:///d:/app_gv/frontend/src/components/layout/AppShell.tsx))**:
+  * Thêm nút **Hỏi AI HDSD** nổi ở góc dưới phải màn hình (tự né thanh `BottomNav` trên điện thoại và tự ẩn khi `OnboardingTour` đang mở).
+  * Khi bấm vào sẽ mở hộp chat **Trợ lý hướng dẫn App** kèm gợi ý câu hỏi nhanh theo trang đang mở, nút **Chỉ nút trang này** (mở hướng dẫn spotlight), hỗ trợ Dark/Light mode, phím `Esc`, và lưu lịch sử chat riêng theo từng `userId` trong `sessionStorage`.
+- **Endpoint AI HDSD có khóa phạm vi & bảo mật 2 lớp ([`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts))**:
+  * Thêm `POST /api/ai/help-chat` yêu cầu đăng nhập.
+  * Lớp bảo vệ 1 (`checkHelpChatGuardrail`): chặn tức thì các yêu cầu ngoài luồng (viết code, giải toán, thời tiết, tin tức...) và chặn tuyệt đối các câu hỏi dò mật khẩu, token, API key, tài khoản/dữ liệu người khác hoặc prompt injection.
+  * Lớp bảo vệ 2 (`APP_HELP_SYSTEM_PROMPT`): gọi Google Gemini (nếu có `GEMINI_API_KEY`) với `systemInstruction` siết chặt phạm vi và không truyền bất kỳ dữ liệu nhạy cảm nào; tự động fallback sang kho hướng dẫn tiếng Việt (`buildRuleBasedHelpReply`) khi chưa cấu hình Gemini Key.
+
+---
+
 ## [2026-11-14] - Giới Hạn Lưu Nhật Ký Kiểm Toán Trong 30 Ngày Gần Nhất
 
 ### 🔧 Đã sửa (Changed)

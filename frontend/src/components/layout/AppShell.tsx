@@ -23,6 +23,7 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { apiGetAdminOverview } from '../../lib/supabase'
 import { BottomNav } from '../ui/BottomNav'
 import { OnboardingTour } from '../onboarding/OnboardingTour'
+import { HelpAssistantWidget } from '../onboarding/HelpAssistantWidget'
 import { cn } from '../../lib/utils'
 
 const TEACHER_NAV_ITEMS = [
@@ -368,6 +369,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Interactive Step-by-Step Onboarding Tour */}
       <OnboardingTour />
+      <HelpAssistantWidget />
 
       {confirmLogoutOpen && (
         <div
