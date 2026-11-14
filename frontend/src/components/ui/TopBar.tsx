@@ -26,7 +26,7 @@ export function TopBar({
 }: TopBarProps) {
   const navigate = useNavigate()
   const { classes, students } = useAppStore()
-  const openOnboardingTour = useAuthStore((s) => s.openOnboardingTour)
+  const openOnboardingMenu = useAuthStore((s) => s.openOnboardingMenu)
   const [scrolled, setScrolled] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
@@ -215,9 +215,9 @@ export function TopBar({
           {rightContent}
           <button
             type="button"
-            onClick={openOnboardingTour}
+            onClick={openOnboardingMenu}
             data-tour="btn-onboarding-help"
-            title="Xem hướng dẫn sử dụng"
+            title="Xem hướng dẫn chi tiết từng trang"
             aria-label="Hướng dẫn sử dụng"
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[#1A73E8] dark:text-[#8AB4F8] bg-blue-50/80 hover:bg-blue-100 dark:bg-[#1A73E8]/15 dark:hover:bg-[#1A73E8]/25 border border-blue-200/70 dark:border-blue-800/50 transition-colors"
           >

@@ -106,7 +106,7 @@ function buildSchoolPeriodsFromPreset(
 type SettingsCategory = 'school_periods' | 'gmail' | 'gcal_ai' | 'appearance' | 'backup'
 
 function AccountSummaryBanner() {
-  const { profile, logout, openOnboardingTour } = useAuthStore()
+  const { profile, logout, openOnboardingMenu } = useAuthStore()
   const [confirmLogout, setConfirmLogout] = useState(false)
 
   if (!profile) return null
@@ -154,7 +154,7 @@ function AccountSummaryBanner() {
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button
             type="button"
-            onClick={openOnboardingTour}
+            onClick={openOnboardingMenu}
             className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-50 hover:bg-blue-100 dark:bg-[#1A73E8]/15 dark:hover:bg-[#1A73E8]/25 text-[#1A73E8] dark:text-[#8AB4F8] border border-blue-200/70 dark:border-blue-800/60 transition-colors"
           >
             <HelpCircle size={15} />
@@ -685,6 +685,7 @@ export function SettingsPage() {
 
       {/* Mobile Horizontal Category Pills (< 768px) */}
       <div
+        data-tour="settings-categories"
         style={{ overflowAnchor: 'none' }}
         className="tablet:hidden sticky top-[68px] z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-3 py-2 overflow-x-auto no-scrollbar"
       >
@@ -720,6 +721,7 @@ export function SettingsPage() {
         <div className="grid grid-cols-1 tablet:grid-cols-12 gap-6 items-start">
           {/* Left Column: Category Navigation (4/12 on Tablet, 3/12 on Desktop) */}
           <aside
+            data-tour="settings-categories"
             style={{ overflowAnchor: 'none' }}
             className="hidden tablet:flex tablet:col-span-4 desktop:col-span-3 flex-col gap-1.5 sticky top-[84px]"
           >

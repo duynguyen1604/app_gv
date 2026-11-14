@@ -739,6 +739,7 @@ export function FeesPage() {
         rightContent={
           <div className="flex items-center gap-2">
             <button
+              data-tour="fees-export-excel"
               onClick={exportExcel}
               className="btn-primary py-1.5 px-3 text-xs bg-emerald-600 hover:bg-emerald-700"
               title="Xuất Excel 5 Sheet: Học phí, Chi tiết từng buổi, Học ghép, Công nợ, Các khoản thu"
@@ -752,7 +753,7 @@ export function FeesPage() {
       <div className="p-4 tablet:p-6 max-w-[1600px] mx-auto flex flex-col gap-5">
         {/* Mode Switcher Bar (Section 2.9: "Theo tháng" | "Công nợ" | "Thống kê") */}
         <div className="flex flex-col tablet:flex-row tablet:items-center justify-between gap-3 bg-white dark:bg-slate-850 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-card">
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap" data-tour="fees-mode-tabs">
             <button
               type="button"
               onClick={() => setMainMode('monthly')}
@@ -796,6 +797,7 @@ export function FeesPage() {
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <select
+              data-tour="fees-month-select"
               aria-label="Chọn tháng"
               className="input text-xs py-1.5 font-semibold w-40"
               value={selectedMonth}
@@ -809,6 +811,7 @@ export function FeesPage() {
             </select>
 
             <select
+              data-tour="fees-class-filter"
               aria-label="Lọc theo lớp"
               className="input text-xs py-1.5 font-semibold w-48"
               value={selectedClassId}

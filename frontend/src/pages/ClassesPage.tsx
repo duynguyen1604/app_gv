@@ -168,6 +168,7 @@ export function ClassesPage() {
             {classes.length > 0 && (
               <button
                 type="button"
+                data-tour="classes-extra-btn"
                 onClick={() => {
                   setEditingExtraSession(null)
                   setExtraPresetClassId(classes[0]?.id)
@@ -179,7 +180,7 @@ export function ClassesPage() {
                 <span>Lịch học phát sinh</span>
               </button>
             )}
-            <button onClick={() => setShowAdd(true)} className="btn-primary">
+            <button data-tour="classes-add-btn" onClick={() => setShowAdd(true)} className="btn-primary">
               <Plus size={17} /> <span>Thêm lớp</span>
             </button>
           </div>

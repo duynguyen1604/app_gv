@@ -16,6 +16,15 @@ import {
 import { useAppStore } from './useAppStore'
 import { bootstrapCloudSync, pushServerState } from '../lib/backendSync'
 
+export type OnboardingScope =
+  | 'full'
+  | 'schedule'
+  | 'classes'
+  | 'class_detail'
+  | 'fees'
+  | 'settings'
+  | 'profile'
+
 interface AuthState {
   profile: UserProfile | null
   sessionToken: string | null
@@ -29,13 +38,17 @@ interface AuthState {
   pendingDevVerifyUrl: string | null
   pendingAdminApprovalCount: number
   onboardingOpen: boolean
+  onboardingScope: OnboardingScope
+  onboardingMenuOpen: boolean
 
   initializeAuth: () => Promise<void>
   setRememberMe: (val: boolean) => void
   setPendingVerification: (email: string | null, devUrl?: string | null) => void
   setPendingAdminApprovalCount: (count: number) => void
   updateProfileState: (profile: UserProfile) => Promise<void>
-  openOnboardingTour: () => void
+  openOnboardingTour: (scope?: OnboardingScope) => void
+  openOnboardingMenu: () => void
+  closeOnboardingMenu: () => void
   closeOnboardingTour: () => Promise<void>
   setAuthenticatedSession: (params: {
     profile: UserProfile
@@ -61,6 +74,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   pendingDevVerifyUrl: null,
   pendingAdminApprovalCount: 0,
   onboardingOpen: false,
+  onboardingScope: 'full',
+  onboardingMenuOpen: false,
 
   setRememberMe: (val) => {
     setRememberMePreference(val)
@@ -91,8 +106,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  openOnboardingTour: () => {
-    set({ onboardingOpen: true })
+  openOnboardingTour: (scope = 'full') => {
+    set({
+      onboardingOpen: true,
+      onboardingScope: scope,
+      onboardingMenuOpen: false,
+    })
+  },
+
+  openOnboardingMenu: () => {
+    set({ onboardingMenuOpen: true })
+  },
+
+  closeOnboardingMenu: () => {
+    set({ onboardingMenuOpen: false })
   },
 
   closeOnboardingTour: async () => {
@@ -163,6 +190,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isInitialized: true,
       isLoading: false,
       onboardingOpen: shouldAutoOpenOnboarding ? true : get().onboardingOpen,
+      onboardingScope: shouldAutoOpenOnboarding ? 'full' : get().onboardingScope,
     })
 
     // Section 4.2: If user just re-authenticated after a mid-work session expiration,
@@ -326,6 +354,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       pendingVerificationEmail: null,
       pendingDevVerifyUrl: null,
       onboardingOpen: false,
+      onboardingMenuOpen: false,
     })
   },
 }))

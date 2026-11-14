@@ -1070,6 +1070,7 @@ export function ClassDetailPage() {
             />
             <button
               type="button"
+              data-tour="classdetail-extra-btn"
               onClick={() => {
                 setEditingExtraSession(null)
                 setShowExtraModal(true)
@@ -1092,6 +1093,7 @@ export function ClassDetailPage() {
               <UserPlus size={14} className="text-purple-600" /> + Học ghép
             </button>
             <button
+              data-tour="classdetail-addstudent-btn"
               onClick={() => setShowAddStudent(true)}
               className="btn-primary py-1.5 px-3 text-xs hidden sm:inline-flex"
             >
@@ -1300,6 +1302,7 @@ export function ClassDetailPage() {
                             <UserPlus size={15} className="text-purple-600" /> + Thêm học sinh học ghép
                           </button>
                           <button
+                            data-tour="classdetail-allpresent-btn"
                             onClick={handleAllPresent}
                             className="btn-primary bg-emerald-600 hover:bg-emerald-700"
                           >

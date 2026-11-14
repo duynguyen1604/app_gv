@@ -40,6 +40,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
+import { useAuthStore } from '../store/useAuthStore'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { MiniCalendar } from '../components/schedule/MiniCalendar'
 import { TimeGridCalendar } from '../components/schedule/TimeGridCalendar'
@@ -720,6 +721,7 @@ export function SchedulePage() {
             {/* "Hôm nay" Button */}
             <button
               type="button"
+              data-tour="schedule-today"
               onClick={handleGoToday}
               title="Về ngày hôm nay (Phím T)"
               className="px-2.5 tablet:px-3 py-1.5 rounded-full border border-gray-300 dark:border-[#37393F] text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#282A2E] transition-colors shrink-0"
@@ -728,7 +730,7 @@ export function SchedulePage() {
             </button>
 
              {/* Prev / Next Arrows (Visible on both Mobile & Desktop for effortless navigation) */}
-             <div className="flex items-center gap-0.5 shrink-0">
+             <div className="flex items-center gap-0.5 shrink-0" data-tour="schedule-nav-arrows">
                <button
                  type="button"
                  onClick={handlePrevPeriod}
@@ -769,7 +771,10 @@ export function SchedulePage() {
            {/* Center: Segmented Quick View Tabs on Tablet/Desktop + Time Filter */}
            <div className="hidden tablet:flex items-center gap-2">
              {/* Quick View Mode Pill Bar */}
-             <div className="flex items-center bg-slate-100 dark:bg-[#282A2E] p-0.5 rounded-xl border border-slate-200/80 dark:border-[#37393F]">
+             <div
+               data-tour="schedule-view-tabs"
+               className="flex items-center bg-slate-100 dark:bg-[#282A2E] p-0.5 rounded-xl border border-slate-200/80 dark:border-[#37393F]"
+             >
                {QUICK_VIEW_TABS.map(tab => {
                  const active = viewMode === tab.key
                  return (
@@ -848,7 +853,7 @@ export function SchedulePage() {
              </div>
 
             {/* Display Settings Popover Trigger */}
-            <div className="relative">
+            <div className="relative" data-tour="schedule-display-btn">
               <button
                 type="button"
                 onClick={() => setDisplayMenuOpen(prev => !prev)}
@@ -1028,6 +1033,19 @@ export function SchedulePage() {
               )}
             </div>
 
+            {/* Fixed Guide / Onboarding Menu Button (Mobile & Desktop) */}
+            <button
+              type="button"
+              onClick={() => useAuthStore.getState().openOnboardingMenu()}
+              data-tour="btn-onboarding-help"
+              title="Hướng dẫn sử dụng trang Lịch dạy"
+              aria-label="Hướng dẫn sử dụng"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[#1A73E8] dark:text-[#8AB4F8] bg-blue-50/80 hover:bg-blue-100 dark:bg-[#1A73E8]/15 dark:hover:bg-[#1A73E8]/25 border border-blue-200/70 dark:border-blue-800/50 transition-colors"
+            >
+              <HelpCircle size={15} className="shrink-0" />
+              <span className="hidden sm:inline">Hướng dẫn</span>
+            </button>
+
             {/* Keyboard Shortcuts "?" Button (Section 5.4) */}
             <button
               type="button"
@@ -1163,6 +1181,7 @@ export function SchedulePage() {
 
               <button
                 type="button"
+                data-tour="schedule-create-btn"
                 onClick={() => setCreateMenuOpen(prev => !prev)}
                 aria-label="Menu thêm từ tin nhắn Zalo hoặc ảnh"
                 title="Thêm từ tin nhắn Zalo hoặc Ảnh TKB trường"
@@ -1760,6 +1779,7 @@ export function SchedulePage() {
 
         <button
           type="button"
+          data-tour="schedule-create-btn"
           onClick={() => setMobileFabMenuOpen(prev => !prev)}
           aria-label="Tạo buổi học hoặc nhập lịch"
           className={cn(

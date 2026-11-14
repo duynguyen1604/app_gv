@@ -86,7 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     sessionToken,
     pendingAdminApprovalCount,
     setPendingAdminApprovalCount,
-    openOnboardingTour,
+    openOnboardingMenu,
     logout,
   } = useAuthStore()
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
@@ -321,9 +321,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="p-2.5 border-t border-gray-100 dark:border-[#2D2F34] flex flex-col gap-2">
           <button
             type="button"
-            onClick={openOnboardingTour}
+            onClick={openOnboardingMenu}
             data-tour="btn-onboarding-help"
-            title="Xem lại hướng dẫn sử dụng"
+            title="Xem hướng dẫn sử dụng từng trang"
             aria-label="Hướng dẫn sử dụng"
             className={cn(
               'flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-[#1A73E8] dark:text-[#8AB4F8] bg-blue-50/70 hover:bg-blue-100/80 dark:bg-[#1A73E8]/15 dark:hover:bg-[#1A73E8]/25 transition-colors',
