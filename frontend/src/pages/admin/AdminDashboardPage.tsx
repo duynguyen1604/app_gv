@@ -619,12 +619,7 @@ export function AdminDashboardPage() {
         </div>
 
         {/* Child Data Privacy Commitment Strip */}
-        <div className="mt-4 pt-3.5 border-t border-white/15 flex items-center gap-2 text-xs text-sky-100">
-          <Lock size={14} className="shrink-0 text-emerald-300" />
-          <span>
-            <strong>Bảo vệ dữ liệu trẻ em & quyền riêng tư:</strong> Admin chỉ quản lý định danh tài khoản giáo viên; không xem danh sách lớp, học sinh, điểm danh hay học phí của giáo viên khác.
-          </span>
-        </div>
+
       </div>
 
       {/* 5 KPI Cards */}
@@ -730,8 +725,8 @@ export function AdminDashboardPage() {
               {overview?.appSettings.registration_mode === 'open'
                 ? 'Mở tự do'
                 : overview?.appSettings.registration_mode === 'invite_only'
-                ? 'Chỉ mã mời'
-                : 'Cần Admin duyệt'}
+                  ? 'Chỉ mã mời'
+                  : 'Cần Admin duyệt'}
             </strong>
           </div>
         </div>
