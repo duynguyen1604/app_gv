@@ -2,6 +2,18 @@
 
 Tất cả các thay đổi đáng chú ý (Thêm mới, Chỉnh sửa, Xóa bỏ) trong dự án Quản lý Lịch dạy Giáo viên được ghi lại chi tiết tại tệp này theo định dạng chuẩn [Keep a Changelog](https://keepachangelog.com/).
 
+## [2026-11-14] - Tái Cấu Trúc Modular Edge API (`frontend/edge-api/`)
+
+### Thêm mới (Added)
+- **Kiến trúc module hóa cho Cloudflare Edge API (`frontend/edge-api/`)**:
+  - `types/index.ts`: Tập trung toàn bộ interface/type dùng chung (`Env`, `PagesContext`, `AuthStoreData`, `SupportTicketRecord`, `ServerState`, v.v.).
+  - `middleware/`: `cors.middleware.ts` (`handleCorsPreflight`, `jsonResponse`, `readJsonBody`) và `auth.middleware.ts` (`requireAuth`, `requireAdmin`).
+  - `shared/`: `kv.service.ts`, `crypto.util.ts`, `email.service.ts`, `auth-store.service.ts`.
+  - `modules/`: Tách 8 nhóm chức năng thành các lớp `*.routes.ts`, `*.controller.ts`, `*.service.ts` (và `*.validation.ts` cho `support`): `health`, `gcal`, `sync`, `ai`, `support`, `notification`, `profile`, `auth`, `admin`.
+
+### Sửa đổi (Changed)
+- **Router tổng ([`frontend/functions/api/[[route]].ts`](file:///d:/app_gv/frontend/functions/api/[[route]].ts))**: Rút gọn từ 2.879 dòng xuống còn ~78 dòng làm entrypoint + điều phối route con, giữ nguyên 100% URL, method, format request/response và mã lỗi.
+
 ## [2026-11-14] - Bổ Sung Kênh Liên Hệ Admin / Gửi Đơn Khiếu Nại & Hỗ Trợ + Chat 2 Chiều Trong Chatbox
 
 ### Thêm mới (Added)
